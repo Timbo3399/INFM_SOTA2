@@ -54,6 +54,7 @@ sample_data/
 # --- Betriebssystem / Editor ---
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
 
@@ -62,5 +63,3 @@ runs/
 wandb/
 mlruns/
 *.log
-
-desktop.ini
