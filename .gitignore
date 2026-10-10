@@ -1,0 +1,51 @@
+# --- Secrets: niemals committen ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+kaggle.json
+client_secret*.json
+credentials*.json
+token*.json
+
+# --- Modellgewichte & Checkpoints ---
+# Ab Kapitel 5 werden GPT-2-Gewichte (mehrere 100 MB) geladen und Modelle gespeichert.
+# GitHub lehnt Dateien > 100 MB ab, und einmal committet bleiben sie in der Historie.
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+*.h5
+*.onnx
+gpt2/
+checkpoints/
+models/
+
+# --- Daten & Downloads ---
+data/
+datasets/
+*.zip
+*.tar
+*.tar.gz
+*.parquet
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# --- Jupyter / Colab ---
+.ipynb_checkpoints/
+.virtual_documents/
+sample_data/
+
+# --- Betriebssystem / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
