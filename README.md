@@ -2,7 +2,8 @@
 
 Gruppenprojekt im Modul SOTA 2 (Master Informatik, Hochschule Offenburg).
 
-> TODO: Ziel des Projekts in 2–3 Sätzen.
+Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyTorch und Google Colab.
+Gruppenprojekt im Modul SOTA 2, Master Informatik an der Hochschule Offenburg.
 
 ## Arbeitsweise
 
