@@ -4,12 +4,6 @@ Gruppenprojekt im Modul SOTA 2 (Master Informatik, Hochschule Offenburg).
 
 > TODO: Ziel des Projekts in 2–3 Sätzen.
 
-## Grundlage
-
-Die Notebooks basieren auf dem Buch *Build a Large Language Model (From Scratch)* von Sebastian Raschka
-und dem zugehörigen Code aus [rasbt/LLMs-from-scratch](https://github.com/rasbt/LLMs-from-scratch),
-lizenziert unter der Apache License 2.0. Eigene Änderungen und Ergänzungen kennzeichnen wir in den Notebooks.
-
 ## Arbeitsweise
 
 ### Branches
@@ -40,7 +34,7 @@ Lokal geht auch `git pull origin main` im eigenen Branch.
 ## Regeln
 
 - **Ein Notebook, eine Person.** Notebooks sind JSON-Dateien, gleichzeitige Änderungen an derselben Datei lassen sich kaum mergen.
-  Wer ein bestehendes Notebook erweitern will, legt eine Kopie an, z. B. `ch02_marvin.ipynb`, oder spricht sich vorher ab.
+  Wer ein bestehendes Notebook erweitern will, legt eine Kopie an, z. B. `template_marvin.ipynb`, oder spricht sich vorher ab.
 - **Keine Secrets im Code.** API-Tokens (Hugging Face, OpenAI, Kaggle …) nur über Colab-Secrets (Schlüssel-Symbol links):
   ```python
   from google.colab import userdata
