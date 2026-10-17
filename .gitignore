@@ -37,6 +37,7 @@ datasets/
 *.tar
 *.tar.gz
 *.parquet
+the-verdict.txt
 
 # --- Python ---
 __pycache__/
