@@ -17,7 +17,7 @@ Entwickelt wird in `.py`-Dateien unter `src/`. Die Notebooks zeigen und erkläre
 ## Lokale Umgebung mit uv
 
 1. [uv installieren](https://docs.astral.sh/uv/getting-started/installation/), mindestens Version 0.13. Ein vorhandenes uv mit `uv self update` aktualisieren.
-2. Im Repo `uv sync` ausführen. uv lädt dabei Python 3.12 und legt `.venv` an.
+2. Im Repo `uv sync` ausführen. uv lädt dabei Python 3.13 und legt `.venv` an.
 3. Notebooks in VS Code öffnen und als Kernel `.venv` wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
 
 Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
@@ -25,8 +25,8 @@ Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
 
 ### Versionen
 
-torch und tiktoken sind exakt auf die Versionen der Colab-Laufzeit festgelegt (`torch==2.11.0`, `tiktoken==0.14.0`, Python 3.12 oder 3.13).
-So läuft lokal, auf dem Cluster und in Colab dasselbe.
+torch und tiktoken sind exakt auf die Versionen der Colab-Laufzeit festgelegt (`torch==2.11.0`, `tiktoken==0.14.0`, Python 3.13).
+So läuft lokal, auf dem Cluster und in Colab dasselbe. `requires-python` erlaubt zusätzlich 3.12, das hat die ältere Colab-Laufzeit 2026.07.
 Welche Versionen Colab gerade hat, steht in [googlecolab/backend-info](https://github.com/googlecolab/backend-info). Angehoben wird nur zusammen mit Colab.
 
 Pakete hinzufügen:
@@ -38,13 +38,16 @@ Pakete hinzufügen:
 ### Auf dem Cluster
 
 ```bash
+export UV_NO_DEV=1
 uv sync --no-dev
 ```
 
-installiert nur, was die Skripte brauchen (torch, tiktoken), ohne die Notebook-Pakete.
+`uv sync --no-dev` installiert nur, was die Skripte brauchen (torch, tiktoken), ohne die Notebook-Pakete.
+`UV_NO_DEV=1` sorgt dafür, dass auch `uv run` sie nicht wieder nachinstalliert. Die Variable gehört deshalb auch ins Jobskript,
+sonst will der Job auf einem Rechenknoten ohne Internet Pakete herunterladen und bricht ab.
 
 Rechenknoten haben oft kein Internet, tiktoken lädt die GPT-2-Daten aber beim ersten Aufruf herunter.
-Deshalb einmal auf dem Login-Knoten ausführen und `TIKTOKEN_CACHE_DIR` im Jobskript genauso setzen:
+Deshalb einmal auf dem Login-Knoten ausführen (im selben Terminal wie oben) und `TIKTOKEN_CACHE_DIR` im Jobskript genauso setzen:
 
 ```bash
 export TIKTOKEN_CACHE_DIR="$HOME/.cache/tiktoken"
@@ -95,6 +98,9 @@ Um ein Notebook in Colab zu bearbeiten:
 1. In Colab *Datei → Notebook öffnen → GitHub*, Repo `Timbo3399/INFM_SOTA2` und den eigenen Feature-Branch wählen.
 2. Speichern mit *Datei → Kopie in GitHub speichern*, dabei den Feature-Branch auswählen.
    Speichern auf `main` schlägt fehl, das ist Absicht.
+   Colab setzt dabei den „Open in Colab“-Link oben im Notebook auf den Feature-Branch, und der wird nach dem Merge gelöscht.
+   Deshalb vor dem Pull Request den Link in der ersten Zelle lokal wieder auf `blob/main/notebooks/…` setzen. Prüfen mit:
+   `grep -o 'colab.research.google.com/github/[^"\\]*' notebooks/*.ipynb`
 3. Aussagekräftige Commit-Message statt „Mit Colab erstellt“, z. B. `ch03: Attention-Gewichte geplottet`.
 
 Colab formatiert beim Speichern die ganze Datei neu. Kleine Änderungen wie Tippfehler oder Links deshalb lokal machen.

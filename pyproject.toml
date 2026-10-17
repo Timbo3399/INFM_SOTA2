@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Marvin Ebi", email = "mebi@stud.hs-offenburg.de" }
 ]
-requires-python = ">=3.12,<3.14"          # Colab-Laufzeiten: 2026.07 = 3.12, nächste = 3.13
+requires-python = ">=3.12,<3.14"          # Colab: aktuell 3.13, ältere Laufzeit 2026.07 = 3.12
 dependencies = [
     # An die Colab-Laufzeit gekoppelt (github.com/googlecolab/backend-info).
     # Nur zusammen mit Colab anheben.
