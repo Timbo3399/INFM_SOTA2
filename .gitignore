@@ -64,3 +64,13 @@ runs/
 wandb/
 mlruns/
 *.log
+slurm-*.out
+slurm-*.err
+
+# --- Ausnahmen für Paket-Code: Unterordner in src/ dürfen data/, models/, checkpoints/ heißen ---
+!src/**/data/
+!src/**/models/
+!src/**/checkpoints/
+
+# --- Notebooks laufen lokal in notebooks/, Downloads landen dort ---
+/notebooks/*.txt

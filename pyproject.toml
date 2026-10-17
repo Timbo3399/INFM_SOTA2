@@ -1,16 +1,24 @@
 [project]
 name = "infm-sota2"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLM von Grund auf in PyTorch – Gruppenprojekt SOTA 2, HS Offenburg"
 readme = "README.md"
 authors = [
     { name = "Marvin Ebi", email = "mebi@stud.hs-offenburg.de" }
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"          # Colab: aktuell 3.13, ältere Laufzeit 2026.07 = 3.12
 dependencies = [
-    "numpy>=2.5.4",
-    "torch>=2.14.1",
+    # An die Colab-Laufzeit gekoppelt (github.com/googlecolab/backend-info).
+    # Nur zusammen mit Colab anheben.
+    "torch==2.11.0",
+    "tiktoken==0.14.0",
 ]
+
+[dependency-groups]
+dev = ["ipykernel", "ipywidgets", "matplotlib", "pandas", "requests"]
+
+[tool.uv]
+required-version = ">=0.13"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
