@@ -8,9 +8,10 @@ kaggle.json
 client_secret*.json
 credentials*.json
 token*.json
+!tokenizer*.json
 
 # --- Modellgewichte & Checkpoints ---
-# Ab Kapitel 5 werden GPT-2-Gewichte (mehrere 100 MB) geladen und Modelle gespeichert.
+# Modellgewichte und Checkpoints sind schnell mehrere 100 MB groß.
 # GitHub lehnt Dateien > 100 MB ab, und einmal committet bleiben sie in der Historie.
 *.pth
 *.pt
@@ -24,8 +25,14 @@ checkpoints/
 models/
 
 # --- Daten & Downloads ---
+# Rohdaten gehören nach data/ und nie ins Repo (Urheberrecht + Größe)
 data/
 datasets/
+/*.txt
+!requirements.txt
+*.npy
+*.npz
+*.pkl
 *.zip
 *.tar
 *.tar.gz
@@ -47,5 +54,12 @@ sample_data/
 # --- Betriebssystem / Editor ---
 .DS_Store
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
+
+# --- Experiment-Logs ---
+runs/
+wandb/
+mlruns/
+*.log
