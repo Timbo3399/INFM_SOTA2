@@ -23,6 +23,16 @@ Entwickelt wird in `.py`-Dateien unter `src/`. Die Notebooks zeigen und erkläre
 Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
 Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
 
+### Checks lokal ausführen
+
+Nach `uv sync` können Ruff und die Unittests so ausgeführt werden:
+
+```bash
+uv run ruff check
+uv run ruff format --check
+uv run python -m unittest
+```
+
 ### Versionen
 
 torch und tiktoken sind exakt auf die Versionen der Colab-Laufzeit festgelegt (`torch==2.11.0`, `tiktoken==0.14.0`, Python 3.13).
