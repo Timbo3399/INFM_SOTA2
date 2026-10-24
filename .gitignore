@@ -66,6 +66,7 @@ mlruns/
 *.log
 slurm-*.out
 slurm-*.err
+.coverage
 
 # --- Ausnahmen für Paket-Code: Unterordner in src/ dürfen data/, models/, checkpoints/ heißen ---
 !src/**/data/

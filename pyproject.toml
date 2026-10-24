@@ -18,7 +18,9 @@ dev = [
     "matplotlib",
     "pandas",
     "requests",
-    "ruff>=0.17.2",
+    "ruff==0.17.2",
+    "pyright==1.1.414",
+    "coverage==7.17.0",
 ]
 
 [tool.uv]
@@ -33,3 +35,11 @@ include = [
     "src/**/*.py",
     "tests/**/*.py",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "standard"
+pythonVersion = "3.12"

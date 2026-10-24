@@ -25,12 +25,15 @@ Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
 
 ### Checks lokal ausführen
 
-Nach `uv sync` können Ruff und die Unittests so ausgeführt werden:
+Nach `uv sync` können Ruff, Pyright, Coverage und die Unittests so ausgeführt werden:
 
 ```bash
 uv run ruff check
 uv run ruff format --check
-uv run python -m unittest
+uv run pyright
+uv run python -m unittest discover -s tests -p 'test*.py'
+uv run coverage run -m unittest discover -s tests -p 'test*.py'
+uv run coverage report
 ```
 
 ### Versionen

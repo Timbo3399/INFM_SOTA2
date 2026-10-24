@@ -15,7 +15,8 @@ class Embeddings(nn.Module):
     def forward(self, x):
         seq_len = x.shape[1]
         assert seq_len <= self.pos_emb.num_embeddings, (
-            f"Sequence length {seq_len} exceeds maximum length {self.pos_emb.num_embeddings}"
+            f"Sequence length {seq_len} exceeds maximum length "
+            f"{self.pos_emb.num_embeddings}"
         )
         positions = torch.arange(seq_len, device=x.device)
         return self.token_emb(x) + self.pos_emb(positions)
