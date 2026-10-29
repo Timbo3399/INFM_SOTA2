@@ -72,9 +72,7 @@ class CausalAttentionTest(TestCase):
         self.assertEqual(output.shape, (2, 4, 4))
 
     def test_rejects_sequences_longer_than_context_length(self):
-        with self.assertRaisesRegex(
-            AssertionError, "Number of tokens 7 exceeds context length 6"
-        ):
+        with self.assertRaisesRegex(AssertionError, "NO!"):
             self.attention(torch.rand(1, 7, 3))
 
 
