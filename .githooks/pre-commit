@@ -1,0 +1,9 @@
+#!/bin/sh
+# Vor jedem Commit dieselben Checks wie die CI (.github/workflows/ci.yml).
+# Einmal pro Klon aktivieren: git config core.hooksPath .githooks
+set -e
+
+uv run --locked ruff check
+uv run --locked ruff format --check
+uv run --locked pyright
+uv run --locked python -m unittest discover -s tests -p 'test*.py'

@@ -1,0 +1,2 @@
+# Zeilenenden immer LF, auch unter Windows (gilt vor core.autocrlf)
+* text=auto eol=lf
