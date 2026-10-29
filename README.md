@@ -14,15 +14,33 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 | `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention` und `MultiHeadAttention`. |
 | `tests/` | Unittests für `src/infm_sota2/`. |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
+| `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
 
 Entwickelt wird in `.py`-Dateien unter `src/`. Die Notebooks zeigen und erklären, was der Code macht.
 
-## Lokale Umgebung mit uv
+## Quick Start
+
+Einmal pro Rechner:
 
 1. [uv installieren](https://docs.astral.sh/uv/getting-started/installation/), mindestens Version 0.13. Ein vorhandenes uv mit `uv self update` aktualisieren.
-2. Im Repo `uv sync` ausführen. uv lädt dabei Python 3.13 und legt `.venv` an.
-3. Notebooks in VS Code öffnen und als Kernel `.venv` wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
+2. Repo klonen und die Umgebung anlegen. uv lädt dabei Python 3.13 und legt `.venv` an:
+   ```bash
+   git clone https://github.com/Timbo3399/INFM_SOTA2.git
+   cd INFM_SOTA2
+   uv sync
+   ```
+3. Den Git-Hook aktivieren, damit vor jedem Commit dieselben Checks laufen wie in der CI (siehe [Git-Hook vor dem Commit](#git-hook-vor-dem-commit)):
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+4. In VS Code `"files.eol": "\n"` setzen. Die `.gitattributes` legt LF als Zeilenende fest, auch unter Windows. Ohne die Einstellung warnt git bei neuen Dateien „CRLF will be replaced by LF“.
+5. Notebooks in VS Code öffnen und als Kernel `.venv` wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
+
+Wer das Repo schon geklont hat, braucht nur `git pull`, `uv sync` und die Schritte 3 und 4.
+In einem älteren Klon können die Dateien noch CRLF haben. Bei einem Stand ohne offene Änderungen stellen `git rm -r --cached -q .` und danach `git reset --hard` sie auf LF um.
+
+Danach geht es weiter wie unter [Arbeitsweise](#arbeitsweise): Branch von `week/NN` anlegen, ändern, committen, Pull Request.
 
 Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
 Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
@@ -42,6 +60,15 @@ uv run coverage report
 
 Dieselben Checks laufen in der CI bei jedem Pull Request und bei jedem Push auf `main` und `week/**`.
 Vor dem Pull Request lokal ausführen. Gemergt wird erst, wenn die CI grün ist.
+
+### Git-Hook vor dem Commit
+
+`.githooks/pre-commit` führt vor jedem Commit `ruff check`, `ruff format --check`, `pyright` und die Unittests aus, mit den Versionen aus `uv.lock` wie in der CI.
+Schlägt ein Check fehl, bricht der Commit ab. Ruff-Fehler behebt meist `uv run ruff check --fix` und danach `uv run ruff format`.
+
+- Der Hook prüft die Arbeitskopie, nicht nur die gestagten Änderungen, und braucht rund 15 Sekunden.
+- `git commit --no-verify` überspringt ihn im Notfall. Die CI prüft trotzdem.
+- Commits aus Colab („Kopie in GitHub speichern“) und über die GitHub-Weboberfläche laufen nicht durch den Hook.
 
 ### Versionen
 
