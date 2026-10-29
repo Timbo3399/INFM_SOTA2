@@ -38,7 +38,9 @@ class CausalAttention(nn.Module):
     def forward(self, x):
         b, num_tokens, d_in = x.shape
 
-        assert num_tokens <= self.mask.shape[0], "NO!"
+        assert num_tokens <= self.mask.shape[0], (
+            f"Number of tokens {num_tokens} exceeds context length {self.mask.shape[0]}"
+        )
 
         keys = self.W_key(x)
         queries = self.W_query(x)
