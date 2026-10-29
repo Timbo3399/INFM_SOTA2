@@ -10,6 +10,10 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 |---|---|
 | `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
 | `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. |
+| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. |
+| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention` und `MultiHeadAttention`. |
+| `tests/` | Unittests für `src/infm_sota2/`. |
+| `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
 
 Entwickelt wird in `.py`-Dateien unter `src/`. Die Notebooks zeigen und erklären, was der Code macht.
@@ -35,6 +39,9 @@ uv run python -m unittest discover -s tests -p 'test*.py'
 uv run coverage run -m unittest discover -s tests -p 'test*.py'
 uv run coverage report
 ```
+
+Dieselben Checks laufen in der CI bei jedem Pull Request und bei jedem Push auf `main` und `week/**`.
+Vor dem Pull Request lokal ausführen. Gemergt wird erst, wenn die CI grün ist.
 
 ### Versionen
 
@@ -129,8 +136,9 @@ assert version("torch").split("+")[0] == "2.11.0", f"Colab hat torch {version('t
 assert version("tiktoken") == "0.14.0", f"Colab hat tiktoken {version('tiktoken')}"
 ```
 
-`--no-deps` verhindert, dass pip torch neu installiert. Statt `@main` geht auch ein Branch, z. B. `@feature/attention`.
+`--no-deps` verhindert, dass pip torch neu installiert. Statt `@main` geht auch ein Branch, z. B. `@week/02`, solange der Code noch nicht in `main` ist.
 Schlägt ein `assert` fehl, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
+Lokal ist das Paket nach `uv sync` schon installiert. Dort meldet `%pip` nur „No module named pip“, weil uv kein pip ins `.venv` legt. Das kann man ignorieren.
 
 ## Regeln
 
