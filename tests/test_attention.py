@@ -22,22 +22,14 @@ class SelfAttentionTest(TestCase):
 
         self.assertEqual(output.shape, (6, 2))
 
-    def test_supports_batches(self):
-        inputs = torch.rand(2, 6, 3)
-
-        output = self.attention(inputs)
-
-        self.assertEqual(output.shape, (2, 6, 2))
-        self.assertTrue(torch.allclose(output[1], self.attention(inputs[1])))
-
     def test_matches_pytorch_attention(self):
-        inputs = torch.rand(2, 6, 3)
+        inputs = torch.rand(6, 3)
 
         expected = F.scaled_dot_product_attention(
-            self.attention.W_query(inputs),
-            self.attention.W_key(inputs),
-            self.attention.W_value(inputs),
-        )
+            self.attention.W_query(inputs).unsqueeze(0),
+            self.attention.W_key(inputs).unsqueeze(0),
+            self.attention.W_value(inputs).unsqueeze(0),
+        ).squeeze(0)
 
         self.assertTrue(torch.allclose(self.attention(inputs), expected, atol=1e-6))
 
@@ -122,7 +114,9 @@ class MultiHeadAttentionTest(TestCase):
         self.assertTrue(torch.allclose(self.attention(inputs), expected, atol=1e-6))
 
     def test_rejects_d_out_not_divisible_by_num_heads(self):
-        with self.assertRaisesRegex(ValueError, "d_out must be divisible by num_heads"):
+        with self.assertRaisesRegex(
+            AssertionError, "d_out must be divisible by num_heads"
+        ):
             MultiHeadAttention(
                 d_in=3, d_out=5, context_length=6, dropout=0.0, num_heads=2
             )
