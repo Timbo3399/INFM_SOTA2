@@ -3,8 +3,8 @@ from unittest import TestCase
 import torch
 import torch.nn.functional as F
 
-from infm_sota2 import MultiHeadAttention, create_dataloader
-from infm_sota2.transformer import CausalAttention, SelfAttention
+from infm_sota2 import create_dataloader
+from infm_sota2.transformer import CausalAttention, MultiHeadAttention, SelfAttention
 
 
 def split_heads(x, num_heads):
