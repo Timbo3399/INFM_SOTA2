@@ -7,7 +7,7 @@ requires-python = ">=3.12,<3.14"          # Colab: aktuell 3.13, ältere Laufzei
 dependencies = [
     # An die Colab-Laufzeit gekoppelt (github.com/googlecolab/backend-info).
     # Nur zusammen mit Colab anheben.
-    "torch==2.11.0",
+    "torch==2.14.1",
     "tiktoken==0.14.0",
     "wandb==0.28.1",
 ]

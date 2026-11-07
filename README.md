@@ -47,7 +47,7 @@ In einem älteren Klon können die Dateien noch CRLF haben. Bei einem Stand ohne
 Danach geht es weiter wie unter [Arbeitsweise](#arbeitsweise): Branch von `week/NN` anlegen, ändern, committen, Pull Request.
 
 Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
-Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
+Für Intel-Macs gibt es die festgelegte torch-Version nicht, dort bitte Colab nutzen.
 
 ### Checks lokal ausführen
 
@@ -76,7 +76,7 @@ Schlägt ein Check fehl, bricht der Commit ab. Ruff-Fehler behebt meist `uv run 
 
 ### Versionen
 
-torch, tiktoken und wandb sind exakt auf die Versionen der Colab-Laufzeit festgelegt (`torch==2.11.0`, `tiktoken==0.14.0`, `wandb==0.28.1`, Python 3.13).
+torch, tiktoken und wandb sind exakt auf die Versionen der Colab-Laufzeit festgelegt, Python auf 3.13. Die Pins stehen nur in `pyproject.toml`.
 So läuft lokal, auf dem Cluster und in Colab dasselbe. `requires-python` erlaubt zusätzlich 3.12, das hat die ältere Colab-Laufzeit 2026.07.
 Welche Versionen Colab gerade hat, steht in [googlecolab/backend-info](https://github.com/googlecolab/backend-info). Angehoben wird nur zusammen mit Colab.
 
@@ -226,13 +226,19 @@ Sobald ein Notebook Code aus `src/infm_sota2/` nutzt, kommt diese Zelle an den A
 # Colab: eigenes Paket installieren, Colabs torch/tiktoken bleiben unangetastet
 %pip install -q --no-deps "git+https://github.com/Timbo3399/INFM_SOTA2.git@main"
 
-from importlib.metadata import version
-assert version("torch").split("+")[0] == "2.11.0", f"Colab hat torch {version('torch')}, pyproject erwartet 2.11.0"
-assert version("tiktoken") == "0.14.0", f"Colab hat tiktoken {version('tiktoken')}"
+from importlib.metadata import requires, version
+
+# Erwartete Versionen kommen aus pyproject.toml des installierten Pakets
+for req in requires("infm-sota2"):
+    name, _, wanted = req.partition("==")
+    have = version(name).split("+")[0]
+    if have != wanted:
+        print(f"Achtung: Colab hat {name} {have}, pyproject.toml erwartet {wanted}")
 ```
 
 `--no-deps` verhindert, dass pip torch neu installiert. Statt `@main` geht auch ein Branch, z. B. `@week/02`, solange der Code noch nicht in `main` ist.
-Schlägt ein `assert` fehl, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
+Die Schleife vergleicht die Versionen in Colab mit den Pins aus der `pyproject.toml` des installierten Stands. Im Notebook steht deshalb keine Versionsnummer.
+Gibt sie eine „Achtung“-Zeile aus, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
 Lokal ist das Paket nach `uv sync` schon installiert. Dort meldet `%pip` nur „No module named pip“, weil uv kein pip ins `.venv` legt. Das kann man ignorieren.
 
 ## Regeln
