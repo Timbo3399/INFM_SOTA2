@@ -9,6 +9,7 @@ dependencies = [
     # Nur zusammen mit Colab anheben.
     "torch==2.11.0",
     "tiktoken==0.14.0",
+    "wandb==0.28.1",
 ]
 
 [dependency-groups]
