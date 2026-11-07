@@ -10,6 +10,7 @@ dependencies = [
     "torch==2.14.1",
     "tiktoken==0.14.0",
     "wandb==0.28.1",
+    "datasets>=5.1.0",
 ]
 
 [dependency-groups]
@@ -22,6 +23,7 @@ dev = [
     "ruff==0.17.2",
     "pyright==1.1.414",
     "coverage==7.17.0",
+    "nbformat>=5.11.1",
 ]
 
 [tool.uv]
