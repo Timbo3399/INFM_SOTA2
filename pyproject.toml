@@ -7,12 +7,15 @@ requires-python = ">=3.12,<3.14"          # Colab: aktuell 3.13, ältere Laufzei
 dependencies = [
     # An die Colab-Laufzeit gekoppelt (github.com/googlecolab/backend-info).
     # Nur zusammen mit Colab anheben.
-    "torch==2.11.0",
+    "torch==2.14.1",
     "tiktoken==0.14.0",
+    "wandb==0.28.1",
 ]
 
 [dependency-groups]
 dev = [
+    # Nur für Notebooks (Hugging-Face-Datensätze in workbook_marvin_training_v1)
+    "datasets>=5.1.0",
     "ipykernel",
     "ipywidgets",
     "matplotlib",
@@ -21,6 +24,7 @@ dev = [
     "ruff==0.17.2",
     "pyright==1.1.414",
     "coverage==7.17.0",
+    "nbformat>=5.11.1",
 ]
 
 [tool.uv]

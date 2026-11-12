@@ -10,9 +10,12 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 |---|---|
 | `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
 | `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. |
-| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. |
-| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention` und `MultiHeadAttention`. |
+| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. `clean_book_text` und `split_text` bereiten Buchtexte vor. |
+| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
+| `src/infm_sota2/model/` | `GPTModel`, `GPT2_SMALL_CONFIG` und `download_weights` für die OpenAI-Gewichte. |
+| `src/infm_sota2/training/` | `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
 | `tests/` | Unittests für `src/infm_sota2/`. |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
@@ -36,14 +39,18 @@ Einmal pro Rechner:
    ```
 4. In VS Code `"files.eol": "\n"` setzen. Die `.gitattributes` legt LF als Zeilenende fest, auch unter Windows. Ohne die Einstellung warnt git bei neuen Dateien „CRLF will be replaced by LF“.
 5. Notebooks in VS Code öffnen und als Kernel `.venv` wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
+6. Bei W&B anmelden, damit Trainingsläufe im gemeinsamen Projekt landen (siehe [Experimente mit W&B](#experimente-mit-wb)):
+   ```bash
+   uv run wandb login --verify
+   ```
 
-Wer das Repo schon geklont hat, braucht nur `git pull`, `uv sync` und die Schritte 3 und 4.
+Wer das Repo schon geklont hat, braucht nur `git pull`, `uv sync` und die Schritte 3, 4 und 6.
 In einem älteren Klon können die Dateien noch CRLF haben. Bei einem Stand ohne offene Änderungen stellen `git rm -r --cached -q .` und danach `git reset --hard` sie auf LF um.
 
 Danach geht es weiter wie unter [Arbeitsweise](#arbeitsweise): Branch von `week/NN` anlegen, ändern, committen, Pull Request.
 
 Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
-Für Intel-Macs gibt es kein torch 2.11, dort bitte Colab nutzen.
+Für Intel-Macs gibt es die festgelegte torch-Version nicht, dort bitte Colab nutzen.
 
 ### Checks lokal ausführen
 
@@ -72,7 +79,7 @@ Schlägt ein Check fehl, bricht der Commit ab. Ruff-Fehler behebt meist `uv run 
 
 ### Versionen
 
-torch und tiktoken sind exakt auf die Versionen der Colab-Laufzeit festgelegt (`torch==2.11.0`, `tiktoken==0.14.0`, Python 3.13).
+torch, tiktoken und wandb sind exakt auf die Versionen der Colab-Laufzeit festgelegt, Python auf 3.13. Die Pins stehen nur in `pyproject.toml`.
 So läuft lokal, auf dem Cluster und in Colab dasselbe. `requires-python` erlaubt zusätzlich 3.12, das hat die ältere Colab-Laufzeit 2026.07.
 Welche Versionen Colab gerade hat, steht in [googlecolab/backend-info](https://github.com/googlecolab/backend-info). Angehoben wird nur zusammen mit Colab.
 
@@ -89,7 +96,7 @@ export UV_NO_DEV=1
 uv sync --no-dev
 ```
 
-`uv sync --no-dev` installiert nur, was die Skripte brauchen (torch, tiktoken), ohne die Notebook-Pakete.
+`uv sync --no-dev` installiert nur, was die Skripte brauchen (torch, tiktoken, wandb), ohne die Notebook-Pakete.
 `UV_NO_DEV=1` sorgt dafür, dass auch `uv run` sie nicht wieder nachinstalliert. Die Variable gehört deshalb auch ins Jobskript,
 sonst will der Job auf einem Rechenknoten ohne Internet Pakete herunterladen und bricht ab.
 
@@ -113,6 +120,70 @@ explicit = true
 [tool.uv.sources]
 torch = [{ index = "pytorch-cu126", marker = "sys_platform == 'linux'" }]
 ```
+
+## Experimente mit W&B
+
+Trainingsläufe loggen wir mit [Weights & Biases](https://wandb.ai) (W&B) in das Projekt [`SOTA_2`](https://wandb.ai/hochschule-offenburg/SOTA_2) des Teams `hochschule-offenburg`.
+Der Link leitet auf forge.coreweave.com weiter, beide Adressen zeigen dasselbe Projekt. Wer es nicht öffnen kann, braucht eine Einladung ins Team.
+
+Im Trainingsskript oder Notebook:
+
+```python
+import wandb
+
+run = wandb.init(
+    entity="hochschule-offenburg",
+    project="SOTA_2",
+    name="gpt2-small-lr4e-4",  # optional, sonst vergibt W&B einen Namen
+    config={"lr": 4e-4, "batch_size": 8},
+)
+for step in range(num_steps):
+    ...  # Trainingsschritt
+    run.log({"train/loss": loss.item()}, step=step)
+run.finish()
+```
+
+In `config` gehören die Hyperparameter. W&B kann Runs nach diesen Werten filtern und vergleichen.
+
+### Anmelden
+
+Einmal pro Rechner, auf dem Cluster auf dem Login-Knoten:
+
+```bash
+uv run wandb login --verify
+```
+
+wandb fragt nach dem API-Key von [wandb.ai/authorize](https://wandb.ai/authorize) und speichert ihn in `~/.netrc`, unter Windows in `%USERPROFILE%\_netrc`.
+`--verify` prüft den Key sofort und zeigt das Standard-Team an. Mit `--relogin` lässt sich ein anderer Key eintragen.
+
+### In Colab
+
+Colab hat wandb 0.28.1 schon installiert. Den API-Key als Colab-Secret `WANDB_API_KEY` anlegen (Schlüssel-Symbol links), dem Notebook Zugriff geben und am Anfang anmelden:
+
+```python
+import wandb
+from google.colab import userdata
+
+wandb.login(key=userdata.get("WANDB_API_KEY"))
+```
+
+### Runs vom Cluster
+
+Haben die Rechenknoten Internet, schreibt der Job direkt nach W&B. Der Key aus `~/.netrc` gilt dort, wenn die Rechenknoten dasselbe Home-Verzeichnis haben wie der Login-Knoten.
+
+Ohne Internet loggt wandb offline in den Ordner `wandb/` im Arbeitsverzeichnis des Jobs. Dafür ins Jobskript:
+
+```bash
+export WANDB_MODE=offline
+```
+
+Nach dem Job die Runs auf dem Login-Knoten hochladen:
+
+```bash
+uv run wandb sync wandb/offline-run-*
+```
+
+`wandb/` steht in der `.gitignore`.
 
 ## Arbeitsweise
 
@@ -158,20 +229,26 @@ Sobald ein Notebook Code aus `src/infm_sota2/` nutzt, kommt diese Zelle an den A
 # Colab: eigenes Paket installieren, Colabs torch/tiktoken bleiben unangetastet
 %pip install -q --no-deps "git+https://github.com/Timbo3399/INFM_SOTA2.git@main"
 
-from importlib.metadata import version
-assert version("torch").split("+")[0] == "2.11.0", f"Colab hat torch {version('torch')}, pyproject erwartet 2.11.0"
-assert version("tiktoken") == "0.14.0", f"Colab hat tiktoken {version('tiktoken')}"
+from importlib.metadata import requires, version
+
+# Erwartete Versionen kommen aus pyproject.toml des installierten Pakets
+for req in requires("infm-sota2"):
+    name, _, wanted = req.partition("==")
+    have = version(name).split("+")[0]
+    if have != wanted:
+        print(f"Achtung: Colab hat {name} {have}, pyproject.toml erwartet {wanted}")
 ```
 
 `--no-deps` verhindert, dass pip torch neu installiert. Statt `@main` geht auch ein Branch, z. B. `@week/02`, solange der Code noch nicht in `main` ist.
-Schlägt ein `assert` fehl, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
+Die Schleife vergleicht die Versionen in Colab mit den Pins aus der `pyproject.toml` des installierten Stands. Im Notebook steht deshalb keine Versionsnummer.
+Gibt sie eine „Achtung“-Zeile aus, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
 Lokal ist das Paket nach `uv sync` schon installiert. Dort meldet `%pip` nur „No module named pip“, weil uv kein pip ins `.venv` legt. Das kann man ignorieren.
 
 ## Regeln
 
 - **Ein Notebook, eine Person.** Notebooks sind JSON-Dateien, gleichzeitige Änderungen an derselben Datei lassen sich kaum mergen.
   Wer ein bestehendes Notebook erweitern will, legt eine Kopie an, z. B. `workbook_marvin_attention.ipynb`, oder spricht sich vorher ab.
-- **Keine Secrets im Code.** API-Tokens (Hugging Face, OpenAI, Kaggle …) nur über Colab-Secrets (Schlüssel-Symbol links):
+- **Keine Secrets im Code.** API-Tokens (Hugging Face, W&B, OpenAI, Kaggle …) nur über Colab-Secrets (Schlüssel-Symbol links):
   ```python
   from google.colab import userdata
   hf_token = userdata.get("HF_TOKEN")
