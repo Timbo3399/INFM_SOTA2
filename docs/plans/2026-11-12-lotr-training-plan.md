@@ -1,6 +1,6 @@
 # LOTR-Training: Implementierungsplan
 
-> **Ausführung:** in dieser Session, Aufgabe für Aufgabe, testgetrieben (erst roter Test, dann Code). Committet wird erst nach Rücksprache.
+> **Ausführung:** Aufgabe für Aufgabe, testgetrieben (erst roter Test, dann Code).
 
 **Ziel:** Trainings-, Mess- und Generierungscode in `src/infm_sota2/`, mit dem das Notebook `workbook_timo_lotr.ipynb` GPT-2 Small auf dem bereinigten Herr-der-Ringe-Text trainiert und vier GPT-2-Varianten plus Claude vergleicht.
 

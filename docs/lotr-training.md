@@ -58,7 +58,7 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 | **Plausibilitätsprüfung:** Der Loss des untrainierten Modells muss nahe ln(50257) ≈ 10,8 liegen | Raten über 50.257 Tokens ergibt genau diesen Loss. Weicht er stark ab, stimmt etwas mit Daten, Zielen oder Loss nicht. | – |
 | **Texte erzeugen mit Temperature 0.8 und Top-k 40, 40 neue Tokens, 3 Stück mit festen Seeds** | Ohne Zufall (immer das wahrscheinlichste Token) wiederholen sich kleine Modelle oft. Feste Seeds machen die Texte reproduzierbar, und alle Modelle laufen mit denselben Einstellungen. | Greedy |
 | **Auswendiglern-Check:** längste Wortfolge eines erzeugten Texts, die wörtlich im Trainingstext steht | Bei 163 Mio. Parametern und weniger als 1 Mio. Tokens kann das Modell ganze Sätze kopieren. Der Check zeigt, ob es selbst formuliert. | – |
-| **Claude per Hand im Inkognito-Chat**, gleicher Prompt, 3 neue Chats | Kein API-Key und keine Kosten. Im Inkognito-Chat greift Claude weder auf die Memory-Funktion noch auf frühere Chats zu. Das Vorwissen über Tolkien bleibt aber. Claude bekommt eine Anweisung statt eines bloßen Satzanfangs, und einen Loss gibt es nicht. Deshalb ist Claude nur ein qualitativer Vergleich. | Per API |
+| **Claude per Hand im Inkognito-Chat**, gleicher Prompt, 3 neue Chats | Kein API-Key und keine Kosten. Im Inkognito-Chat greift Claude weder auf die Memory-Funktion noch auf frühere Chats zu. Das Vorwissen über Tolkien bleibt aber, und den übrigen Kontext von claude.ai wie das aktuelle Datum bekommt Claude auch im Inkognito-Chat (siehe Ergebnisse). Claude bekommt eine Anweisung statt eines bloßen Satzanfangs, und einen Loss gibt es nicht. Deshalb ist Claude nur ein qualitativer Vergleich. | Per API |
 
 ### Code
 
@@ -95,6 +95,9 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 6. **Claude befragen:** In claude.ai einen *Inkognito-Chat* öffnen, den Prompt aus der Zelle „Claude“ unverändert einfügen und die Antwort kopieren.
    Das dreimal, jeweils in einem neuen Inkognito-Chat. Die drei Antworten in die Liste `CLAUDE_COMPLETIONS` eintragen und die Vergleichszellen noch einmal ausführen.
 7. **Fazit** in die letzte Zelle schreiben.
+8. **Speichern** mit *Datei → Kopie in GitHub speichern*, Branch `feature/lotr-training`. Dabei den **Dateipfad prüfen**: Er muss `notebooks/workbook_timo_lotr.ipynb` lauten.
+   Wegen des Schrägstrichs im Branch-Namen hat Colab beim ersten Lauf `lotr-training/notebooks/…` gespeichert.
+   Colab fügt außerdem oben eine eigene „Open in Colab“-Zelle mit Link auf den Branch ein. Die muss vor dem Pull Request wieder raus, der Link in der ersten Zelle zeigt auf `main`.
 
 Die Läufe stehen in W&B unter [`hochschule-offenburg/SOTA_2`](https://wandb.ai/hochschule-offenburg/SOTA_2), Gruppen `lotr-lr-search`, `lotr-main` und `lotr-finetune`.
 
@@ -105,10 +108,32 @@ Mit `SMOKE_TEST = True` in der ersten Code-Zelle läuft alles mit einem winzigen
 W&B ist dabei aus, die OpenAI-Gewichte werden nicht geladen, und das Notebook sagt das bei den betroffenen Zellen auch.
 Damit lässt sich die Pipeline in etwa 30 Sekunden prüfen. Die Zahlen und Texte aus diesem Modus haben keine Aussagekraft.
 
+## Ergebnisse (Lauf vom 12.11.2026, Tesla T4)
+
+| Modell | Test-Loss | Perplexity |
+|---|---|---|
+| Untrainiert | 10,98 | 58.620 |
+| LOTR von Grund auf | 4,35 | 77,7 |
+| GPT-2 original | 3,63 | 37,6 |
+| GPT-2 nachtrainiert | **3,09** | **22,0** |
+
+- **Die Plausibilitätsprüfung passt:** Das untrainierte Modell liegt mit 10,98 nahe ln(50257) ≈ 10,8.
+- **Lernrate 4e-4** war nach einer Epoche am besten (Validierungs-Loss 4,92; 1e-4: 5,19; 1e-3: 5,09).
+- **Die Annahme zum Auswendiglernen hat sich nicht bestätigt.** Der beste Validierungs-Loss lag in jedem Lauf beim letzten Schritt, im Hauptlauf auch nach 4 Epochen (4,46).
+  Das Modell hat also noch nicht ausgelernt. Ein nächster Lauf sollte mehr Epochen bekommen.
+- **Vorwissen bringt am meisten:** GPT-2 original hat ohne gezieltes Training die halbe Perplexity unseres Modells. Nachtrainiert halbiert sie sich noch einmal.
+- **Kein Modell kopiert längere Passagen:** Die längsten wörtlich übernommenen Wortfolgen haben 3–5 Wörter. Claude kommt mit Allerweltswendungen auf 3–4.
+- **Claude (Haiku 5.5)** schreibt am flüssigsten, denkt bei „The Elves are“ aber nicht an Tolkien, sondern an Waldelfen, eine Werkstatt im Winter und Hausgeister aus der deutschen Folklore.
+  „This November“ zeigt, dass claude.ai auch im Inkognito-Chat das Datum mitgibt.
+
+Die Texte aller Modelle und das ausführliche Fazit stehen im Notebook.
+
 ## Grenzen
 
 - **Ein Lauf pro Variante.** Ohne Wiederholungen mit anderen Seeds wissen wir nicht, wie stark der Test-Loss streut. Kleine Unterschiede sind deshalb nicht belastbar.
 - **Drei Texte pro Modell sind Beispiele**, keine Statistik.
 - **GPT-2 original und Claude** haben beim Vortraining möglicherweise Teile des Buchs gesehen. Claude kennt Tolkien sicher.
+- **Claude ist nicht kontextfrei.** Der Inkognito-Chat schaltet nur Memory und Chatverlauf ab. Den übrigen Kontext von claude.ai bekommt Claude weiter, nachweislich das Datum.
+  Ob auch Sprache oder Standort dazugehören, lässt sich von außen nicht prüfen. Verglichen wurde außerdem nur das kleine Modell Haiku 5.5.
 - **Das Testset ist das Ende von Buch 6.** Inhaltlich unterscheidet es sich etwas vom Training, aber es ist derselbe Erzählstil.
 - **Läufe auf der GPU sind nicht bitgenau reproduzierbar.** Gleicher Seed heißt gleiche Daten-Reihenfolge, aber minimale Rechenunterschiede bleiben.
