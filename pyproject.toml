@@ -10,11 +10,12 @@ dependencies = [
     "torch==2.14.1",
     "tiktoken==0.14.0",
     "wandb==0.28.1",
-    "datasets>=5.1.0",
 ]
 
 [dependency-groups]
 dev = [
+    # Nur für Notebooks (Hugging-Face-Datensätze in workbook_marvin_training_v1)
+    "datasets>=5.1.0",
     "ipykernel",
     "ipywidgets",
     "matplotlib",
