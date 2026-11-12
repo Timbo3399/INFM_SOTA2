@@ -10,9 +10,12 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 |---|---|
 | `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
 | `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. |
-| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. |
-| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention` und `MultiHeadAttention`. |
+| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. `clean_book_text` und `split_text` bereiten Buchtexte vor. |
+| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
+| `src/infm_sota2/model/` | `GPTModel`, `GPT2_SMALL_CONFIG` und `download_weights` für die OpenAI-Gewichte. |
+| `src/infm_sota2/training/` | `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
 | `tests/` | Unittests für `src/infm_sota2/`. |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |

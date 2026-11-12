@@ -700,7 +700,6 @@ name = "infm-sota2"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "datasets" },
     { name = "tiktoken" },
     { name = "torch" },
     { name = "wandb" },
@@ -709,6 +708,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "datasets" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "matplotlib" },
@@ -721,7 +721,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datasets", specifier = ">=5.1.0" },
     { name = "tiktoken", specifier = "==0.14.0" },
     { name = "torch", specifier = "==2.14.1" },
     { name = "wandb", specifier = "==0.28.1" },
@@ -730,6 +729,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = "==7.17.0" },
+    { name = "datasets", specifier = ">=5.1.0" },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "matplotlib" },
