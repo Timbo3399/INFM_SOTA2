@@ -1,4 +1,7 @@
-"""Gemeinsame Test-Bausteine: ein winziges GPTModel, das auf der CPU schnell ist."""
+"""Gemeinsame Test-Bausteine: ein winziges GPTModel, das auf der CPU schnell ist,
+und ein selbst geschriebenes Mini-Buch."""
+
+from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -28,3 +31,24 @@ def pattern_loader(n_windows: int, batch_size: int) -> DataLoader:
     inputs = tokens[:-1].view(n_windows, seq_len)
     targets = tokens[1:].view(n_windows, seq_len)
     return DataLoader(TensorDataset(inputs, targets), batch_size=batch_size)
+
+
+# Marker und Titel, wie TextSplits.from_book sie aus CONFIG["data"] bekommt
+MINI_BOOK = {
+    "file": "mini-book.txt",
+    "start_line": "PROLOGUE",
+    "end_line": "APPENDIX A",
+    "book_title": "THE BOOK OF TESTS",
+}
+
+
+def write_mini_book(directory: Path) -> str:
+    """Legt ein Mini-Buch mit Vorspann, Erzählteil und Anhang an.
+
+    Gibt den Dateinamen zurück."""
+    paragraphs = [
+        f"Sentence number {i} tells a short story about tests." for i in range(200)
+    ]
+    lines = ["CONTENTS", "", "PROLOGUE", "", "\n\n".join(paragraphs), "", "APPENDIX A"]
+    (directory / MINI_BOOK["file"]).write_text("\n".join(lines), encoding="utf-8")
+    return MINI_BOOK["file"]
