@@ -92,6 +92,25 @@ class BenchmarkTest(TestCase):
         self.assertIsNone(failed.tokens_per_second)
         self.assertIsNone(after.error)
 
+    def test_math_kernel_keeps_16_bit_matmuls(self):
+        # Sonst rechnet der Math-Kernel bf16-Eingaben in fp32, und Nr. 4 gegen
+        # Nr. 5 misst nicht allein FlashAttention
+        seen = []
+
+        class FlagSpy(GPTModelV2):
+            def forward(self, in_idx):
+                seen.append(torch.backends.cuda.fp16_bf16_reduction_math_sdp_allowed())
+                return super().forward(in_idx)
+
+        before = torch.backends.cuda.fp16_bf16_reduction_math_sdp_allowed()
+
+        self.bench.run(Variant("V2 math", FlagSpy, "bf16-mixed", "math", None))
+
+        self.assertTrue(all(seen))
+        self.assertEqual(
+            torch.backends.cuda.fp16_bf16_reduction_math_sdp_allowed(), before
+        )
+
     def test_rejects_seq_len_longer_than_context(self):
         with self.assertRaisesRegex(ValueError, "context_length"):
             Benchmark(TINY_CONFIG, 2, 9, 1, 2, CPU, 1)

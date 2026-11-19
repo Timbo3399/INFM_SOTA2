@@ -8,8 +8,8 @@ Spitzenwerte der Tensor Cores.
 
 import gc
 import time
-from collections.abc import Callable
-from contextlib import nullcontext
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
@@ -83,6 +83,22 @@ def peak_tflops(gpu_name: str | None, precision: Precision) -> float | None:
             by_precision = {"fp32": fp32, "fp16-mixed": fp16, "bf16-mixed": bf16}
             return by_precision.get(precision, bf16)  # "bf16" wie "bf16-mixed"
     return None
+
+
+@contextmanager
+def _math_kernel() -> Iterator[None]:
+    """Erzwingt den Math-Kernel, mit 16-Bit-Matrixprodukten wie unser eigener Code.
+
+    Ohne die Einstellung rechnet PyTorch bf16- und fp16-Eingaben im Math-Kernel in
+    fp32, dann misst Nr. 4 gegen Nr. 5 nicht allein FlashAttention.
+    """
+    allowed = torch.backends.cuda.fp16_bf16_reduction_math_sdp_allowed()
+    torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
+    try:
+        with sdpa_kernel(SDPBackend.MATH):
+            yield
+    finally:
+        torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(allowed)
 
 
 class Benchmark:
@@ -179,11 +195,7 @@ class Benchmark:
 
         def step() -> None:
             optimizer.zero_grad(set_to_none=True)
-            kernel = (
-                sdpa_kernel(SDPBackend.MATH)
-                if variant.attention == "math"
-                else nullcontext()
-            )
+            kernel = _math_kernel() if variant.attention == "math" else nullcontext()
             mixed = torch.autocast(
                 self.device.type, dtype=dtype, enabled=dtype is not None
             )

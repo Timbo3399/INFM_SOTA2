@@ -192,6 +192,7 @@ Die Klasse `Benchmark` steht in `infm_sota2/benchmark.py`.
 | 6 | `torch.compile` | V2 | wie Nr. 2 | auto | ja |
 
 Der Unterschied zwischen Nr. 4 und Nr. 5 ist allein FlashAttention, das passt zur Paper-Präsentation.
+Dafür erlaubt der Benchmark bei Nr. 4 16-Bit-Matrixprodukte im Math-Kernel (`allow_fp16_bf16_reduction_math_sdp`). Von sich aus rechnet PyTorch dort bf16-Eingaben in fp32, dann wäre Nr. 4 künstlich langsam.
 
 ### Notebook `workbook_timo_attention_v2.ipynb`
 
@@ -199,6 +200,8 @@ Der Unterschied zwischen Nr. 4 und Nr. 5 ist allein FlashAttention, das passt zu
 - Jede Aufgabe der Folie bekommt einen Abschnitt mit kurzer Erklärung (was sich ändert, warum es schneller wird, welche Folie), ein bis zwei Zeilen Code und der Ergebniszeile.
 - Ein Abschnitt lädt die OpenAI-Gewichte in V1 und V2 und lässt beide denselben Prompt ohne Zufall fortsetzen. Wegen der GELU-Näherung können die Texte leicht abweichen.
 - Am Ende stehen die Tabelle aller Varianten, zwei Balkendiagramme (Tokens/s und Speicher, direkt mit pandas gezeichnet), die MFU und das Fazit.
+
+Vor dem Merge nach `main` gibt es die neuen Klassen nur auf `week/05`. Für einen Lauf in Colab davor `BRANCH` vorübergehend auf `week/05` setzen und vor dem Speichern wieder auf `main`, das prüft `tests/test_notebooks.py`.
 
 Nach dem Lauf kommen die Ergebnisse in diese Datei, und die README nennt `gpt_v2.py` und `benchmark.py` in der Projektstruktur.
 
