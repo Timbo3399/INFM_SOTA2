@@ -77,3 +77,7 @@ class GPTModelV2Test(TestCase):
             v2 = load_pretrained(GPTModelV2, TINY_CONFIG, path, CPU).eval()
 
         self.assertTrue(torch.allclose(v1(self.tokens), v2(self.tokens), atol=1e-5))
+
+    def test_rejects_emb_dim_not_divisible_by_heads(self):
+        with self.assertRaisesRegex(ValueError, "n_heads"):
+            GPTModelV2({**TINY_CONFIG, "n_heads": 3})
