@@ -9,13 +9,13 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 | Pfad | Inhalt |
 |---|---|
 | `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
-| `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. `env.py`: `Environment` für Colab oder lokal, Pfade, Gerät und W&B-Login. |
+| `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. `env.py`: `Environment` für Colab oder lokal, Pfade, Gerät und W&B-Login. `benchmark.py`: `Benchmark` misst Tokens/s, Speicher und MFU (Woche 5). |
 | `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. `clean_book_text` und `split_text` bereiten Buchtexte vor, `TextSplits` macht daraus Training, Validierung, Test und die Loader. |
 | `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
-| `src/infm_sota2/model/` | `GPTModel`, `GPT2_SMALL_CONFIG`, `build_model` (Modell mit festem Seed), `download_weights` und `load_pretrained` für die OpenAI-Gewichte. |
+| `src/infm_sota2/model/` | `GPTModel`, `GPTModelV2` (aus `torch.nn`-Bausteinen mit `scaled_dot_product_attention`), `GPT2_SMALL_CONFIG`, `build_model` (Modell mit festem Seed), `download_weights` und `load_pretrained` für die OpenAI-Gewichte. |
 | `src/infm_sota2/training/` | `Trainer` mit `TrainConfig` (ein Lauf samt W&B und bestem Checkpoint), `ModelReport` (Modelle vergleichen), `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
 | `tests/` | Unittests für `src/infm_sota2/`. |
-| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md). |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md) und [Woche 5: Attention V2](docs/attention-v2.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |

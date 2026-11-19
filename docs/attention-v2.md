@@ -4,7 +4,7 @@ Woche 5, Aufgabe *Attention V2: increasing performance*. Neues Notebook `noteboo
 
 Vorher ziehen wir den Code aus [`workbook_timo_lotr.ipynb`](../notebooks/workbook_timo_lotr.ipynb) in Klassen unter `src/infm_sota2/` um, damit beide Notebooks nur noch wenige Methoden aufrufen.
 
-Stand: Design, noch nicht umgesetzt. Die Ergebnisse kommen nach dem Lauf auf der GPU in diese Datei.
+Stand: Teil 1 und 2 sind umgesetzt und auf einer A100 gemessen (Ergebnisse unten). Der KV-Cache (Teil 3) ist offen.
 
 ## Aufgabe
 
@@ -18,6 +18,30 @@ Laut Folie 20 aus Woche 5:
 6. Ein Paper vorstellen. Wir nehmen FlashAttention, das kommt später.
 
 Das Notebook wird in der Vorlesung gezeigt. Deshalb hat jeder Schritt eine kurze Erklärung, einen Aufruf und sein Ergebnis. Die Logik liegt getestet in `src/`.
+
+## Ergebnisse (Lauf vom 19.11.2026, NVIDIA A100-SXM4-40GB in Colab)
+
+GPT-2 Small, Batchgröße 4, 1024 Tokens, 3 Aufwärm- und 10 Messschritte. Ein Trainingsschritt kostet 854 Mio. FLOPs pro Token.
+
+| Nr. | Schritt | Tokens/s | ms pro Schritt | Speicher (GiB) | MFU | gegenüber Nr. 1 |
+|---|---|---|---|---|---|---|
+| 1 | Ausgangsstand, fp32 | 13.760 | 297,7 | 12,2 | 60,3 % (gegen fp32) | 1,0× |
+| 2 | 16 Bit mit `autocast` | 35.447 | 115,6 | 10,5 | 9,7 % | 2,6× |
+| 3 | 16 Bit, ganzes Modell | 50.702 | 80,8 | 7,6 | 13,9 % | 3,7× |
+| 4 | torch.nn ohne Flash | 50.457 | 81,2 | 8,6 | 13,8 % | 3,7× |
+| 5 | torch.nn mit Flash | 75.621 | 54,2 | 5,8 | 20,7 % | 5,5× |
+| 6 | `torch.compile` | 92.586 | 44,2 | 5,8 | 25,4 % | 6,7× |
+
+- **Zusammen sind die Schritte 6,7-mal so schnell wie der Ausgangsstand** und brauchen knapp die Hälfte des Speichers (5,8 statt 12,2 GiB).
+- **16 Bit bringt den größten einzelnen Sprung.** Mit `autocast` laufen die Matrixprodukte auf den Tensor Cores, das ist 2,6-mal so schnell wie fp32.
+- **Das ganze Modell in bf16 (Nr. 3)** ist noch einmal 1,4-mal so schnell wie `autocast` und braucht 2,9 GiB weniger. Ein Grund: `autocast` wandelt in jedem Schritt die fp32-Gewichte in bf16 um, und AdamW rechnet auf fp32-Kopien. Beides entfällt hier. Fürs Training bleibt es trotzdem bei `autocast`, weil AdamW in reinem bf16 kleine Updates verliert.
+- **Die `torch.nn`-Bausteine** (Nr. 2 gegen Nr. 4, gleiche Präzision) sind 1,4-mal so schnell und sparen 1,9 GiB: fertige Kernel für LayerNorm und GELU und ein Linear für Q, K und V statt drei.
+- **FlashAttention** (Nr. 4 gegen Nr. 5, sonst gleich) ist 1,5-mal so schnell und spart 2,8 GiB, ein Drittel des Speichers. Die T×T-Matrix der Attention wird nie im GPU-Speicher abgelegt.
+- **`torch.compile`** (Nr. 5 gegen Nr. 6) bringt noch einmal den Faktor 1,2, der Speicher bleibt gleich.
+- **Die MFU lässt sich zwischen fp32 und 16 Bit nicht vergleichen.** Nr. 1 erreicht 60 % der fp32-Spitze von 19,5 TFLOPS, alle anderen rechnen gegen die bf16-Spitze von 312 TFLOPS. Vergleichbar sind die Tokens/s. Am Ende nutzen wir ein Viertel der bf16-Spitze. Mit Batchgröße 4 ist die GPU noch nicht voll ausgelastet.
+- **`GPTModelV2` ist dasselbe Modell:** Mit den OpenAI-Gewichten setzen V1 und V2 „The Elves are“ wörtlich gleich fort. Die größte Abweichung der Logits ist 0,075 und kommt von der GELU-Näherung.
+
+Grenzen: ein Lauf pro Variante und 10 Messschritte, die Streuung zwischen Läufen ist nicht gemessen. Die Batchgröße ist mit 4 bewusst klein, damit auch fp32 auf kleinere GPUs passt.
 
 ## Ziele und Grenzen
 
@@ -166,16 +190,17 @@ Die Klasse `Benchmark` steht in `infm_sota2/benchmark.py`.
 - `run(variant)` baut ein neues Modell mit AdamW und erzeugt zufällige Tokens mit festem Seed, weil der Inhalt die Geschwindigkeit nicht ändert. Dann laufen die Aufwärmschritte, in denen auch kompiliert wird, und danach die Messschritte. Ein Messschritt ist ein ganzer Trainingsschritt: Gradienten löschen, Forward, Loss, Backward (bei fp16 mit Scaler) und Optimizer-Schritt. Auf CUDA misst der Benchmark mit CUDA-Events, auf der CPU mit `time.perf_counter`.
 - Das Ergebnis enthält Tokens/s, ms pro Schritt, Spitzenspeicher (`torch.cuda.max_memory_allocated`, auf der CPU leer), FLOPs pro Token und MFU. Geht einer Variante der Speicher aus, steht das im Ergebnis, und der Benchmark läuft mit der nächsten weiter. Zwischen den Varianten gibt er den Speicher frei.
 - FLOPs pro Token beim Training: `6 · (Summe aller nn.Linear-Gewichte) + 12 · n_layers · seq_len · emb_dim`. Der erste Teil sind die Linear-Schichten inklusive `out_head`, der zweite die beiden Matrixprodukte der Attention über die volle Länge, wie im PaLM-Paper.
-- Für die MFU braucht der Benchmark die Spitzenleistung der GPU. Die Tabelle nennt dichte Werte ohne Sparsity in TFLOPS. Sie sind noch nicht gegen die NVIDIA-Datenblätter geprüft, das passiert beim Umsetzen.
+- Für die MFU braucht der Benchmark die Spitzenleistung der GPU. Die Tabelle nennt dichte Werte ohne Sparsity in TFLOPS, geprüft am 19.11.2026 gegen die NVIDIA-Datenblätter. Wo ein Datenblatt nur den Wert mit Sparsity nennt, steht hier die Hälfte.
 
   | GPU | FP32 | FP16/BF16 (Tensor Cores) |
   |---|---|---|
   | T4 | 8,1 | 65, nur FP16 |
   | L4 | 30,3 | 121 |
   | A100 | 19,5 | 312 |
-  | L40S | 91,6 | 362 |
-  | H100 SXM | 67 | 989 |
-  | H100 PCIe | 51 | 756 |
+  | L40S | 91,6 | 362,05 |
+  | H100 SXM | 67 | 989,5 |
+  | H100 PCIe | 51 | 756,5 |
+  | H100 NVL | 60 | 835,5 |
 
   `fp32` rechnet gegen die Spalte FP32, alle 16-Bit-Varianten gegen FP16/BF16. Die GPU wird am Namen aus `torch.cuda.get_device_name()` erkannt. Dabei muss „L40S“ vor „L4“ geprüft werden, und bei der H100 zählt, ob „PCIe“ im Namen steht. Bei einer unbekannten GPU bleibt die MFU leer.
 
@@ -191,6 +216,7 @@ Die Klasse `Benchmark` steht in `infm_sota2/benchmark.py`.
 | 6 | `torch.compile` | V2 | wie Nr. 2 | auto | ja |
 
 Der Unterschied zwischen Nr. 4 und Nr. 5 ist allein FlashAttention, das passt zur Paper-Präsentation.
+Dafür erlaubt der Benchmark bei Nr. 4 16-Bit-Matrixprodukte im Math-Kernel (`allow_fp16_bf16_reduction_math_sdp`). Von sich aus rechnet PyTorch dort bf16-Eingaben in fp32, dann wäre Nr. 4 künstlich langsam.
 
 ### Notebook `workbook_timo_attention_v2.ipynb`
 
@@ -198,6 +224,8 @@ Der Unterschied zwischen Nr. 4 und Nr. 5 ist allein FlashAttention, das passt zu
 - Jede Aufgabe der Folie bekommt einen Abschnitt mit kurzer Erklärung (was sich ändert, warum es schneller wird, welche Folie), ein bis zwei Zeilen Code und der Ergebniszeile.
 - Ein Abschnitt lädt die OpenAI-Gewichte in V1 und V2 und lässt beide denselben Prompt ohne Zufall fortsetzen. Wegen der GELU-Näherung können die Texte leicht abweichen.
 - Am Ende stehen die Tabelle aller Varianten, zwei Balkendiagramme (Tokens/s und Speicher, direkt mit pandas gezeichnet), die MFU und das Fazit.
+
+Vor dem Merge nach `main` gibt es die neuen Klassen nur auf `week/05`. Für einen Lauf in Colab davor `BRANCH` vorübergehend auf `week/05` setzen und vor dem Speichern wieder auf `main`, das prüft `tests/test_notebooks.py`.
 
 Nach dem Lauf kommen die Ergebnisse in diese Datei, und die README nennt `gpt_v2.py` und `benchmark.py` in der Projektstruktur.
 

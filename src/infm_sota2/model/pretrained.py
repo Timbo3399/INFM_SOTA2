@@ -10,6 +10,8 @@ from typing import Any
 import torch
 from torch import nn
 
+from infm_sota2.model.gpt_v2 import GPTModelV2, convert_v1_state_dict
+
 GPT2_SMALL_CONFIG: dict[str, int | float | bool] = {
     "vocab_size": 50257,
     "context_length": 1024,
@@ -79,6 +81,8 @@ def load_pretrained[M: nn.Module](
     """
     model = model_cls(config)
     state = torch.load(weights_path, map_location="cpu", weights_only=True)
+    if isinstance(model, GPTModelV2):
+        state = convert_v1_state_dict(state)  # die Datei hat das Format von GPTModel
     model.load_state_dict(state)
     return model.to(device)
 
