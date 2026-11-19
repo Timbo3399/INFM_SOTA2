@@ -1,9 +1,16 @@
-"""GPT-2-Small-Konfiguration und Download der OpenAI-Gewichte."""
+"""GPT-2-Small-Konfiguration, Download und Laden der OpenAI-Gewichte."""
 
 import hashlib
 import shutil
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+import torch
+from torch import nn
+
+from infm_sota2.model.gpt_v2 import GPTModelV2, convert_v1_state_dict
 
 GPT2_SMALL_CONFIG: dict[str, int | float | bool] = {
     "vocab_size": 50257,
@@ -59,6 +66,25 @@ def download_weights(url: str, sha256: str, dest: Path) -> Path:
         raise
     partial.replace(dest)
     return dest
+
+
+def load_pretrained[M: nn.Module](
+    model_cls: Callable[[dict[str, Any]], M],
+    config: dict[str, Any],
+    weights_path: Path,
+    device: torch.device,
+) -> M:
+    """Baut ein Modell und lädt die Gewichte aus ``weights_path`` (strikt).
+
+    Setzt bewusst keinen Seed: Das Bauen verbraucht dieselben Zufallszahlen wie
+    ``model_cls(config)``, ein Training danach bekommt also dieselben wie bisher.
+    """
+    model = model_cls(config)
+    state = torch.load(weights_path, map_location="cpu", weights_only=True)
+    if isinstance(model, GPTModelV2):
+        state = convert_v1_state_dict(state)  # die Datei hat das Format von GPTModel
+    model.load_state_dict(state)
+    return model.to(device)
 
 
 def _check_sha256(path: Path, expected: str) -> None:
