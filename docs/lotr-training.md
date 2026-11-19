@@ -65,6 +65,7 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 | Entscheidung | Warum | Verworfen |
 |---|---|---|
 | **Trainings-, Mess- und Generierungscode in `src/infm_sota2/`**, das Notebook ruft ihn nur auf | So verlangt es die README. Alle Modelle nutzen denselben Code, damit sich die Varianten nur in Startpunkt und Training unterscheiden. Der Code hat Unittests und läuft später auch auf dem Cluster. | Alles im Notebook |
+| **Notebook-Logik in Klassen** (`Environment`, `TextSplits`, `Trainer`, `ModelReport`), umgebaut in Woche 5 | Das Notebook zeigt nur noch die Schritte, die Logik hat Tests und dient auch Woche 5 und 6. Die Zahlen bleiben gleich: Der Smoke-Test vor und nach dem Umbau liefert dieselben Losses und Texte. | Hilfsfunktionen im Notebook |
 | **W&B nicht im Trainingscode**, `train()` bekommt stattdessen eine Funktion `log` übergeben | Die Tests laufen dann ohne W&B-Konto, und der Code hängt nicht an einem bestimmten Werkzeug. | `wandb.log` in `train()` |
 | **Keine Default-Werte für Hyperparameter** in den Funktionen, alle Werte stehen in einem `CONFIG` im Notebook und gehen nach W&B | Versteckte Defaults sind versteckte Annahmen. So ist jeder verwendete Wert dokumentiert. | Defaults in Signaturen |
 | **OpenAI-Gewichte über einen festen Commit laden** (`rasbt/gpt2-from-scratch-pytorch` @ `402728f`), mit SHA-256-Prüfung und `torch.load(weights_only=True)` | Reproduzierbar: immer dieselbe Datei. Sicher: Eine veränderte Datei wird abgelehnt, und beim Laden läuft kein fremder Code. Vorab geprüft, dass alle 209 Schlüssel zu unserem `GPTModel` passen. | Laden über `main` ohne Prüfung |
@@ -74,8 +75,13 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 
 | Pfad | Inhalt |
 |---|---|
+| `src/infm_sota2/env.py` | `Environment` erkennt Colab oder lokal, kennt Pfade und Gerät, meldet bei W&B an und vergleicht die Paketversionen. |
+| `src/infm_sota2/data/splits.py` | `TextSplits.from_book()` bereinigt das Buch, teilt es auf und baut die Loader. `summary()` zeigt, was die Bereinigung geändert hat. |
 | `src/infm_sota2/data/cleaning.py` | `clean_book_text()`: schneidet den Erzähltext aus, entfernt Seitenkopfzeilen, fügt Absätze zusammen und löst die Silbentrennung auf. `split_text()` teilt an Absatzgrenzen in Training, Validierung und Test. |
-| `src/infm_sota2/model/pretrained.py` | `GPT2_SMALL_CONFIG`; `download_weights()` lädt die Datei und prüft die SHA-256. |
+| `src/infm_sota2/model/build.py` | `build_model()` baut ein Modell mit festem Seed. |
+| `src/infm_sota2/model/pretrained.py` | `GPT2_SMALL_CONFIG`; `download_weights()` lädt die Datei und prüft die SHA-256, `load_pretrained()` lädt die Gewichte ins Modell. |
+| `src/infm_sota2/training/trainer.py` | `Trainer.fit()`: Optimizer, W&B-Run, `train()` und bester Checkpoint. `TrainConfig` hält die Werte, die für alle Läufe gleich sind. |
+| `src/infm_sota2/training/report.py` | `ModelReport`: Test-Loss, Perplexity, erzeugte Texte und Auswendiglern-Check für alle Modelle. |
 | `src/infm_sota2/training/loop.py` | `evaluate()`, `train()`, `save_checkpoint()`, `load_checkpoint()` |
 | `src/infm_sota2/training/generate.py` | `generate()` mit Temperature und Top-k, `complete()` liefert die Fortsetzung eines Prompts als Text |
 | `src/infm_sota2/training/analysis.py` | `longest_copied_span()` für den Auswendiglern-Check |
@@ -85,7 +91,7 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 ### In Colab (für den richtigen Lauf)
 
 1. **Text nach Google Drive legen:** `MyDrive/INFM_SOTA2/data/The-lord-of-the-rings.txt`. Die Datei ist nicht im Repo und kommt auch nicht hinein.
-2. **Notebook öffnen:** In Colab *Datei → Notebook öffnen → GitHub*, Repo `Timbo3399/INFM_SOTA2`, Branch `feature/lotr-training`, Datei `notebooks/workbook_timo_lotr.ipynb`.
+2. **Notebook öffnen:** In Colab *Datei → Notebook öffnen → GitHub*, Repo `Timbo3399/INFM_SOTA2`, Branch `main`, Datei `notebooks/workbook_timo_lotr.ipynb`.
 3. **GPU einschalten:** *Laufzeit → Laufzeittyp ändern → T4-GPU*.
 4. **W&B-Key als Secret** `WANDB_API_KEY` anlegen (Schlüssel-Symbol links) und dem Notebook Zugriff geben, siehe README.
 5. **Alle Zellen ausführen.** Das Notebook bindet Drive ein, lädt beim ersten Mal die OpenAI-Gewichte (700 MB) nach `MyDrive/INFM_SOTA2/checkpoints/` und trainiert.
@@ -95,7 +101,7 @@ Bei Fenstern von 256 Tokens und Batchgröße 8 sind das 261 Schritte pro Epoche.
 6. **Claude befragen:** In claude.ai einen *Inkognito-Chat* öffnen, den Prompt aus der Zelle „Claude“ unverändert einfügen und die Antwort kopieren.
    Das dreimal, jeweils in einem neuen Inkognito-Chat. Die drei Antworten in die Liste `CLAUDE_COMPLETIONS` eintragen und die Vergleichszellen noch einmal ausführen.
 7. **Fazit** in die letzte Zelle schreiben.
-8. **Speichern** mit *Datei → Kopie in GitHub speichern*, Branch `feature/lotr-training`. Dabei den **Dateipfad prüfen**: Er muss `notebooks/workbook_timo_lotr.ipynb` lauten.
+8. **Speichern** mit *Datei → Kopie in GitHub speichern*, in einen eigenen Feature-Branch. Dabei den **Dateipfad prüfen**: Er muss `notebooks/workbook_timo_lotr.ipynb` lauten.
    Wegen des Schrägstrichs im Branch-Namen hat Colab beim ersten Lauf `lotr-training/notebooks/…` gespeichert.
    Colab fügt außerdem oben eine eigene „Open in Colab“-Zelle mit Link auf den Branch ein. Die muss vor dem Pull Request wieder raus, der Link in der ersten Zelle zeigt auf `main`.
 
