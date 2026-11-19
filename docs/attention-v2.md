@@ -4,7 +4,7 @@ Woche 5, Aufgabe *Attention V2: increasing performance*. Neues Notebook `noteboo
 
 Vorher ziehen wir den Code aus [`workbook_timo_lotr.ipynb`](../notebooks/workbook_timo_lotr.ipynb) in Klassen unter `src/infm_sota2/` um, damit beide Notebooks nur noch wenige Methoden aufrufen.
 
-Stand: Design, noch nicht umgesetzt. Die Ergebnisse kommen nach dem Lauf auf der GPU in diese Datei.
+Stand: Teil 1 und 2 sind umgesetzt, die Ergebnisse vom Lauf auf der GPU fehlen noch. Der KV-Cache (Teil 3) ist offen.
 
 ## Aufgabe
 
