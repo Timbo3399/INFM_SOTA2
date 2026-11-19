@@ -4,7 +4,7 @@ Woche 5, Aufgabe *Attention V2: increasing performance*. Neues Notebook `noteboo
 
 Vorher ziehen wir den Code aus [`workbook_timo_lotr.ipynb`](../notebooks/workbook_timo_lotr.ipynb) in Klassen unter `src/infm_sota2/` um, damit beide Notebooks nur noch wenige Methoden aufrufen.
 
-Stand: Teil 1 und 2 sind umgesetzt, die Ergebnisse vom Lauf auf der GPU fehlen noch. Der KV-Cache (Teil 3) ist offen.
+Stand: Teil 1 und 2 sind umgesetzt und auf einer A100 gemessen (Ergebnisse unten). Der KV-Cache (Teil 3) ist offen.
 
 ## Aufgabe
 
@@ -18,6 +18,30 @@ Laut Folie 20 aus Woche 5:
 6. Ein Paper vorstellen. Wir nehmen FlashAttention, das kommt später.
 
 Das Notebook wird in der Vorlesung gezeigt. Deshalb hat jeder Schritt eine kurze Erklärung, einen Aufruf und sein Ergebnis. Die Logik liegt getestet in `src/`.
+
+## Ergebnisse (Lauf vom 19.11.2026, NVIDIA A100-SXM4-40GB in Colab)
+
+GPT-2 Small, Batchgröße 4, 1024 Tokens, 3 Aufwärm- und 10 Messschritte. Ein Trainingsschritt kostet 854 Mio. FLOPs pro Token.
+
+| Nr. | Schritt | Tokens/s | ms pro Schritt | Speicher (GiB) | MFU | gegenüber Nr. 1 |
+|---|---|---|---|---|---|---|
+| 1 | Ausgangsstand, fp32 | 13.760 | 297,7 | 12,2 | 60,3 % (gegen fp32) | 1,0× |
+| 2 | 16 Bit mit `autocast` | 35.447 | 115,6 | 10,5 | 9,7 % | 2,6× |
+| 3 | 16 Bit, ganzes Modell | 50.702 | 80,8 | 7,6 | 13,9 % | 3,7× |
+| 4 | torch.nn ohne Flash | 50.457 | 81,2 | 8,6 | 13,8 % | 3,7× |
+| 5 | torch.nn mit Flash | 75.621 | 54,2 | 5,8 | 20,7 % | 5,5× |
+| 6 | `torch.compile` | 92.586 | 44,2 | 5,8 | 25,4 % | 6,7× |
+
+- **Zusammen sind die Schritte 6,7-mal so schnell wie der Ausgangsstand** und brauchen knapp die Hälfte des Speichers (5,8 statt 12,2 GiB).
+- **16 Bit bringt den größten einzelnen Sprung.** Mit `autocast` laufen die Matrixprodukte auf den Tensor Cores, das ist 2,6-mal so schnell wie fp32.
+- **Das ganze Modell in bf16 (Nr. 3)** ist noch einmal 1,4-mal so schnell wie `autocast` und braucht 2,9 GiB weniger. Ein Grund: `autocast` wandelt in jedem Schritt die fp32-Gewichte in bf16 um, und AdamW rechnet auf fp32-Kopien. Beides entfällt hier. Fürs Training bleibt es trotzdem bei `autocast`, weil AdamW in reinem bf16 kleine Updates verliert.
+- **Die `torch.nn`-Bausteine** (Nr. 2 gegen Nr. 4, gleiche Präzision) sind 1,4-mal so schnell und sparen 1,9 GiB: fertige Kernel für LayerNorm und GELU und ein Linear für Q, K und V statt drei.
+- **FlashAttention** (Nr. 4 gegen Nr. 5, sonst gleich) ist 1,5-mal so schnell und spart 2,8 GiB, ein Drittel des Speichers. Die T×T-Matrix der Attention wird nie im GPU-Speicher abgelegt.
+- **`torch.compile`** (Nr. 5 gegen Nr. 6) bringt noch einmal den Faktor 1,2, der Speicher bleibt gleich.
+- **Die MFU lässt sich zwischen fp32 und 16 Bit nicht vergleichen.** Nr. 1 erreicht 60 % der fp32-Spitze von 19,5 TFLOPS, alle anderen rechnen gegen die bf16-Spitze von 312 TFLOPS. Vergleichbar sind die Tokens/s. Am Ende nutzen wir ein Viertel der bf16-Spitze. Mit Batchgröße 4 ist die GPU noch nicht voll ausgelastet.
+- **`GPTModelV2` ist dasselbe Modell:** Mit den OpenAI-Gewichten setzen V1 und V2 „The Elves are“ wörtlich gleich fort. Die größte Abweichung der Logits ist 0,075 und kommt von der GELU-Näherung.
+
+Grenzen: ein Lauf pro Variante und 10 Messschritte, die Streuung zwischen Läufen ist nicht gemessen. Die Batchgröße ist mit 4 bewusst klein, damit auch fp32 auf kleinere GPUs passt.
 
 ## Ziele und Grenzen
 
