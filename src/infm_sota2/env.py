@@ -5,12 +5,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.metadata import requires, version
 from pathlib import Path
+from typing import Literal
 
 import torch
 import wandb
 
 WANDB_ENTITY = "hochschule-offenburg"
 WANDB_PROJECT = "SOTA_2"
+
+WandbMode = Literal["online", "disabled"]
 
 _COLAB_BASE_DIR = Path("/content/drive/MyDrive/INFM_SOTA2")
 _COLAB_RUN_DIR = Path("/content/runs")  # schnelle lokale Platte während des Trainings
@@ -40,7 +43,7 @@ class Environment:
     base_dir: Path
     run_dir: Path
     device: torch.device
-    wandb_mode: str
+    wandb_mode: WandbMode
 
     @classmethod
     def detect(cls, smoke_test: bool) -> "Environment":
@@ -56,7 +59,7 @@ class Environment:
             base_dir = Path.cwd()
             run_dir = base_dir / "checkpoints" / "runs"
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        wandb_mode = "disabled" if smoke_test else "online"
+        wandb_mode: WandbMode = "disabled" if smoke_test else "online"
         return cls(in_colab, base_dir, run_dir, device, wandb_mode)
 
     @property

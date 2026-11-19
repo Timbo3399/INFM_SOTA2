@@ -8,9 +8,12 @@ from infm_sota2.training.loop import (
     save_checkpoint,
     train,
 )
+from infm_sota2.training.trainer import TrainConfig, Trainer
 
 __all__ = [
+    "TrainConfig",
     "TrainResult",
+    "Trainer",
     "batch_loss",
     "complete",
     "evaluate",
