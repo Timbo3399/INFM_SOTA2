@@ -166,16 +166,17 @@ Die Klasse `Benchmark` steht in `infm_sota2/benchmark.py`.
 - `run(variant)` baut ein neues Modell mit AdamW und erzeugt zufällige Tokens mit festem Seed, weil der Inhalt die Geschwindigkeit nicht ändert. Dann laufen die Aufwärmschritte, in denen auch kompiliert wird, und danach die Messschritte. Ein Messschritt ist ein ganzer Trainingsschritt: Gradienten löschen, Forward, Loss, Backward (bei fp16 mit Scaler) und Optimizer-Schritt. Auf CUDA misst der Benchmark mit CUDA-Events, auf der CPU mit `time.perf_counter`.
 - Das Ergebnis enthält Tokens/s, ms pro Schritt, Spitzenspeicher (`torch.cuda.max_memory_allocated`, auf der CPU leer), FLOPs pro Token und MFU. Geht einer Variante der Speicher aus, steht das im Ergebnis, und der Benchmark läuft mit der nächsten weiter. Zwischen den Varianten gibt er den Speicher frei.
 - FLOPs pro Token beim Training: `6 · (Summe aller nn.Linear-Gewichte) + 12 · n_layers · seq_len · emb_dim`. Der erste Teil sind die Linear-Schichten inklusive `out_head`, der zweite die beiden Matrixprodukte der Attention über die volle Länge, wie im PaLM-Paper.
-- Für die MFU braucht der Benchmark die Spitzenleistung der GPU. Die Tabelle nennt dichte Werte ohne Sparsity in TFLOPS. Sie sind noch nicht gegen die NVIDIA-Datenblätter geprüft, das passiert beim Umsetzen.
+- Für die MFU braucht der Benchmark die Spitzenleistung der GPU. Die Tabelle nennt dichte Werte ohne Sparsity in TFLOPS, geprüft am 19.11.2026 gegen die NVIDIA-Datenblätter. Wo ein Datenblatt nur den Wert mit Sparsity nennt, steht hier die Hälfte.
 
   | GPU | FP32 | FP16/BF16 (Tensor Cores) |
   |---|---|---|
   | T4 | 8,1 | 65, nur FP16 |
   | L4 | 30,3 | 121 |
   | A100 | 19,5 | 312 |
-  | L40S | 91,6 | 362 |
-  | H100 SXM | 67 | 989 |
-  | H100 PCIe | 51 | 756 |
+  | L40S | 91,6 | 362,05 |
+  | H100 SXM | 67 | 989,5 |
+  | H100 PCIe | 51 | 756,5 |
+  | H100 NVL | 60 | 835,5 |
 
   `fp32` rechnet gegen die Spalte FP32, alle 16-Bit-Varianten gegen FP16/BF16. Die GPU wird am Namen aus `torch.cuda.get_device_name()` erkannt. Dabei muss „L40S“ vor „L4“ geprüft werden, und bei der H100 zählt, ob „PCIe“ im Namen steht. Bei einer unbekannten GPU bleibt die MFU leer.
 
