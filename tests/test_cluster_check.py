@@ -9,17 +9,7 @@ from pathlib import Path
 import torch
 
 from infm_sota2.cluster.check import collect_info, format_info
-from infm_sota2.env import Environment
-
-
-def cpu_environment(base_dir: Path) -> Environment:
-    return Environment(
-        in_colab=False,
-        base_dir=base_dir,
-        run_dir=base_dir / "runs",
-        device=torch.device("cpu"),
-        wandb_mode="disabled",
-    )
+from tests.helpers import local_env
 
 
 class CollectInfoTest(unittest.TestCase):
@@ -32,7 +22,7 @@ class CollectInfoTest(unittest.TestCase):
 
     @unittest.skipIf(torch.cuda.is_available(), "prüft den Fall ohne GPU")
     def test_collect_info_on_cpu(self):
-        info = collect_info(cpu_environment(self.base), check_internet=False)
+        info = collect_info(local_env(self.base), check_internet=False)
 
         self.assertIs(info["cuda_available"], False)
         self.assertIsNone(info["gpu"])
@@ -42,13 +32,13 @@ class CollectInfoTest(unittest.TestCase):
         (self.base / "data").mkdir()
         (self.base / "data" / "mini-book.txt").write_text("x", encoding="utf-8")
 
-        info = collect_info(cpu_environment(self.base), check_internet=False)
+        info = collect_info(local_env(self.base), check_internet=False)
 
         self.assertEqual(info["data_dir"], str(self.base / "data"))
         self.assertEqual(info["data_files"], ["mini-book.txt"])
 
     def test_format_info_lists_every_key(self):
-        info = collect_info(cpu_environment(self.base), check_internet=False)
+        info = collect_info(local_env(self.base), check_internet=False)
 
         text = format_info(info)
 

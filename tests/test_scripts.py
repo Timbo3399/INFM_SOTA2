@@ -274,3 +274,12 @@ class JobScriptTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Klon", result.stderr)
         self.assertFalse(self.calls.exists(), "srun oder nvidia-smi wurde aufgerufen")
+
+    def test_train_job_refuses_foreign_directory(self):
+        job = [str(SLURM / "train.sbatch"), "--config", "configs/smoke.toml"]
+
+        result = run_bash(job, self.env, self.foreign)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Klon", result.stderr)
+        self.assertFalse(self.calls.exists(), "srun wurde aufgerufen")

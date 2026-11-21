@@ -1,4 +1,6 @@
 import io
+import subprocess
+import sys
 import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -40,3 +42,15 @@ class MiniBookTest(TestCase):
 
     def test_helpers_use_package_version(self):
         self.assertIs(tests.helpers.write_mini_book, write_mini_book)
+
+    def test_module_call_runs_without_warning(self):
+        # So ruft slurm/setup.sh das Mini-Buch auf. Importiert das Paket das Modul
+        # vorher schon, warnt Python bei jedem Aufruf mit einer RuntimeWarning.
+        command = [sys.executable, "-W", "error", "-m", "infm_sota2.data.mini_book"]
+
+        result = subprocess.run(
+            [*command, str(self.dir / "neu")], capture_output=True, text=True
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")

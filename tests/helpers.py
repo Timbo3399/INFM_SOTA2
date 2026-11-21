@@ -1,15 +1,19 @@
 """Gemeinsame Test-Bausteine: ein winziges GPTModel, das auf der CPU schnell ist,
-und das selbst geschriebene Mini-Buch aus dem Paket."""
+das selbst geschriebene Mini-Buch aus dem Paket und eine lokale Umgebung."""
+
+from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from infm_sota2 import GPTModel
 from infm_sota2.data.mini_book import MINI_BOOK, write_mini_book
+from infm_sota2.env import Environment
 
 __all__ = [
     "MINI_BOOK",
     "TINY_CONFIG",
+    "local_env",
     "pattern_loader",
     "tiny_model",
     "write_mini_book",
@@ -38,3 +42,15 @@ def pattern_loader(n_windows: int, batch_size: int) -> DataLoader:
     inputs = tokens[:-1].view(n_windows, seq_len)
     targets = tokens[1:].view(n_windows, seq_len)
     return DataLoader(TensorDataset(inputs, targets), batch_size=batch_size)
+
+
+def local_env(base_dir: Path) -> Environment:
+    """Auf der CPU, ohne W&B, alle Ordner unter ``base_dir``."""
+    return Environment(
+        in_colab=False,
+        base_dir=base_dir,
+        run_dir=base_dir / "checkpoints" / "runs",
+        device=torch.device("cpu"),
+        wandb_mode="disabled",
+        data_dir=base_dir / "data",
+    )
