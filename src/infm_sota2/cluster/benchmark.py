@@ -13,11 +13,9 @@ Aufruf: ``python -m infm_sota2.cluster.benchmark [--smoke]``, auf dem Cluster
 
 import argparse
 import getpass
-import json
 import os
 from collections.abc import Sequence
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -31,6 +29,7 @@ from infm_sota2.benchmark import (
     slide20_variants,
 )
 from infm_sota2.cluster.check import collect_info
+from infm_sota2.cluster.results import result_path, write_result
 from infm_sota2.env import Environment
 from infm_sota2.model import GPT2_SMALL_CONFIG
 
@@ -137,15 +136,6 @@ def _run_variants(
     return results
 
 
-def _result_file(base_dir: Path, gpu: str | None, job_id: str | None) -> Path:
-    """``results/week06/<benutzer>/benchmark/<gpu>-job<id>.json``.
-
-    Ohne Job-ID, also außerhalb von Slurm, endet der Name auf ``-local.json``."""
-    label = (gpu or "cpu").replace(" ", "-")
-    name = f"{label}-job{job_id}.json" if job_id is not None else f"{label}-local.json"
-    return base_dir / "results" / "week06" / getpass.getuser() / "benchmark" / name
-
-
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Lauf Nr. 1: Varianten aus Woche 5 und größte Batchgröße"
@@ -213,10 +203,9 @@ def main(argv: list[str] | None = None) -> None:
             {"batch_size": batch, **asdict(result)} for batch, result in scan_results
         ],
     }
-    path = _result_file(env.base_dir, env.gpu_name, job_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("x", encoding="utf-8") as file:  # "x": nie überschreiben
-        json.dump(record, file, indent=2, ensure_ascii=False)
+    label = (env.gpu_name or "cpu").replace(" ", "-")
+    path = result_path(env.base_dir, getpass.getuser(), "benchmark", label, job_id)
+    write_result(path, record)
     print(f"\nErgebnis: {path}")
 
 
