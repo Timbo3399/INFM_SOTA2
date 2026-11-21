@@ -17,6 +17,15 @@ fi
 # shellcheck disable=SC1091  # entsteht erst durch setup.sh
 source .venv/bin/activate
 
+# srun übernimmt --cpus-per-task seit Slurm 22.05 nicht mehr vom Job. Ohne die
+# Variable liefe torchrun auf jedem Knoten mit einem einzigen Kern.
+export SRUN_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK
+
+# Ab zwei Knoten zeigt das Log, ob NCCL InfiniBand nutzt oder auf TCP ausweicht
+if ((SLURM_NNODES > 1)); then
+  export NCCL_DEBUG=INFO
+fi
+
 # Treffpunkt für torchrun: der erste Knoten des Jobs. Der Port hängt an der
 # Job-ID, damit sich zwei Jobs auf demselben Knoten nicht in die Quere kommen.
 MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)

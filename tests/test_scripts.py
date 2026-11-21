@@ -107,30 +107,46 @@ class CommonTest(unittest.TestCase):
             "HOME": str(self.clone / "home"),
             "SLURM_JOB_ID": "123456",
             "SLURM_JOB_NODELIST": "node[07-08]",
+            "SLURM_NNODES": "2",
+            "SLURM_CPUS_PER_TASK": "16",
         }
+        self.env.pop("NCCL_DEBUG", None)
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def make_venv(self) -> None:
+        venv = self.clone / ".venv" / "bin"
+        venv.mkdir(parents=True)
+        (venv / "activate").write_text("VENV_TEST=aktiv\n", encoding="utf-8")
 
     def source_common(self) -> subprocess.CompletedProcess[str]:
         script = (
             f'set -euo pipefail; source "{SLURM / "common.sh"}"; '
             'echo "$UV_NO_DEV|$TIKTOKEN_CACHE_DIR|${VENV_TEST:-}'
-            '|$MASTER_ADDR|$MASTER_PORT"'
+            '|$MASTER_ADDR|$MASTER_PORT|$SRUN_CPUS_PER_TASK|${NCCL_DEBUG:-}"'
         )
         return run_bash(["-c", script], self.env, self.clone)
 
     def test_common_sets_job_environment(self):
-        venv = self.clone / ".venv" / "bin"
-        venv.mkdir(parents=True)
-        (venv / "activate").write_text("VENV_TEST=aktiv\n", encoding="utf-8")
+        self.make_venv()
 
         result = self.source_common()
 
         self.assertEqual(result.returncode, 0, result.stderr)
         cache = f"{self.env['HOME']}/.cache/tiktoken"
-        # Port 20000 + 123456 % 20000
-        self.assertEqual(result.stdout.strip(), f"1|{cache}|aktiv|node07|23456")
+        # Port 20000 + 123456 % 20000. srun übernimmt --cpus-per-task seit
+        # Slurm 22.05 nicht mehr vom Job, NCCL meldet ab zwei Knoten das Netz.
+        self.assertEqual(result.stdout.strip(), f"1|{cache}|aktiv|node07|23456|16|INFO")
+
+    def test_common_on_one_node_leaves_nccl_quiet(self):
+        self.make_venv()
+        self.env["SLURM_NNODES"] = "1"
+
+        result = self.source_common()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.strip().endswith("|16|"), result.stdout)
 
     def test_common_without_venv_points_to_setup(self):
         result = self.source_common()
@@ -219,3 +235,42 @@ class SetupTest(unittest.TestCase):
         calls = self.calls.read_text("utf-8")
         self.assertIn("curl -LsSf https://astral.sh/uv/install.sh", calls)
         self.assertNotIn("sync", calls)
+
+
+@needs_bash
+class JobScriptTest(unittest.TestCase):
+    """Ein Jobskript, das außerhalb des Klons abgeschickt wurde, startet nichts."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.foreign = base / "kein-klon"
+        self.foreign.mkdir()
+        fake_bin = base / "fake-bin"
+        fake_bin.mkdir()
+        self.calls = base / "calls.txt"
+        for command in ("srun", "nvidia-smi", "scontrol"):
+            write_executable(
+                fake_bin / command, f'#!/bin/bash\necho "{command} $*" >> "$CALL_LOG"\n'
+            )
+        self.env = {
+            **os.environ,
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "CALL_LOG": str(self.calls),
+            "SLURM_SUBMIT_DIR": str(self.foreign),
+            "SLURM_JOB_ID": "1",
+            "SLURM_JOB_NODELIST": "node01",
+            "SLURM_NNODES": "1",
+            "SLURM_CPUS_PER_TASK": "16",
+            "SLURM_GPUS_ON_NODE": "1",
+        }
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_check_job_refuses_foreign_directory(self):
+        result = run_bash([str(SLURM / "check.sbatch")], self.env, self.foreign)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Klon", result.stderr)
+        self.assertFalse(self.calls.exists(), "srun oder nvidia-smi wurde aufgerufen")

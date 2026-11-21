@@ -219,6 +219,7 @@ Dann wie immer auf einem Branch committen und einen Pull Request stellen. Auf de
 | `torch.OutOfMemoryError: CUDA out of memory` | Batch passt nicht in die 48 GB der GPU | kleinere Batchgröße. In der Suche zählt das als gescheiterter Lauf. |
 | `Keine .venv in ...` | Einrichtung fehlt oder Job aus dem falschen Ordner | im Klon `bash slurm/setup.sh`, aus dem Klon abschicken |
 | Meldung, dass der Ordner kein Klon ist | `sbatch` außerhalb des Klons aufgerufen | erst `cd` in den Klon |
+| Job endet sofort, in `logs/` liegt kein Log | Slurm legt das Log in `logs/` unter dem Ordner an, aus dem der Job kam. Fehlt der Ordner dort, gibt es kein Log. | aus dem Klon abschicken, `setup.sh` legt `logs/` an. `sacct -j <Job-ID>` zeigt den Zustand. |
 | `FileNotFoundError` mit einem Pfad in `data/` | Buchtext fehlt oder `SOTA2_DATA_DIR` zeigt woandershin | Buchtext hochladen, `setup.sh` prüft das |
 | W&B bricht ab, weil kein API-Key da ist | kein Login auf dem Cluster | `uv run wandb login --verify` oder `export WANDB_MODE=disabled` |
 | `The NVIDIA driver on your system is too old` | Treiber kann kein CUDA 13 | Job 1 zeigt den Treiber, Timo entscheidet über einen anderen CUDA-Index (README, „Auf dem Cluster“) |
