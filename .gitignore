@@ -60,6 +60,8 @@ desktop.ini
 .idea/
 
 # --- Experiment-Logs ---
+# logs/: Ausgaben der Slurm-Jobs (logs/%x-%j.out)
+logs/
 runs/
 wandb/
 mlruns/
