@@ -2,7 +2,7 @@
 
 Woche 6, Aufgabe *Scaling Pre-Training*. Wir trainieren GPT-2 auf dem Cluster DACHS, mit den Optimierungen aus Woche 5 und mit DDP über mehrere Knoten. Alles soll für jede Person aus der Gruppe gleich funktionieren.
 
-Stand: Entwurf vom 21.11.2026, noch nicht umgesetzt.
+Stand: umgesetzt am 21.11.2026 auf `feature/cluster-setup` und `feature/cluster-training`. Die Läufe auf dem Cluster und ihre Ergebnisse folgen. Was beim Umsetzen anders kam, steht am Ende unter „Abweichungen bei der Umsetzung“.
 
 ## Aufgabe
 
@@ -439,3 +439,15 @@ Mein Vorschlag, bitte prüfen:
 - Zwei Feature-Branches.
 
 Dem Umsetzer überlassen sind die genauen Signaturen, die Aufteilung innerhalb der Module, die Werte für Hauptspeicher, CPUs und Zeit in den Jobskripten, das Format der JSON-Dateien, die Texte in Anleitung und Notebook und die Einzelheiten der Tests.
+
+## Abweichungen bei der Umsetzung
+
+Was beim Umsetzen anders kam als oben beschrieben, und warum:
+
+- **W&B-Modus und Datenordner schon in Schritt 2.** `Environment` liest `WANDB_MODE` und `SOTA2_DATA_DIR` schon auf `feature/cluster-setup`. Sonst hätte jeder Lauf vor dem Umbau einen W&B-Login und Internet auf den Rechenknoten gebraucht.
+- **Smoke-Lauf in Schritt 2.** `configs/smoke.toml` lief bis zum Umbau mit `fp16-mixed` und ohne `compile`, weil der Trainer aus Schritt 2 nicht mehr konnte. Seit dem Umbau läuft er mit `bf16-mixed`, `inductor` und fused AdamW.
+- **Gemeinsamer Workspace.** `ws_share` gibt anderen nur Lesezugriff, `setup.sh` schreibt aber das Mini-Buch in den Datenordner. Die Anleitung verlinkt deshalb Buchtext und Gewichte aus dem Workspace ins eigene `data/`, statt `SOTA2_DATA_DIR` auf den Workspace zu setzen.
+- **SSH-Schlüssel.** Das bwHPC-Wiki nennt für DACHS keine Schlüssel aus bwIDM. Die Anleitung empfiehlt, Dateien über die offene VS-Code-Verbindung hochzuladen.
+- **Jobskripte.** `srun` übernimmt `--cpus-per-task` seit Slurm 22.05 nicht mehr vom Job, deshalb setzt `slurm/common.sh` `SRUN_CPUS_PER_TASK`. Alle `srun`-Aufrufe haben `--kill-on-bad-exit=1`, damit ein Fehler auf einem Knoten die anderen nicht bis zum NCCL-Timeout warten lässt.
+- **Batch-Scan im Benchmark.** Vor jeder Batchgröße setzt `torch.compiler.reset()` die Kompilierungen zurück. Ohne das liefen spätere Batchgrößen nach dem Limit von `torch.compile` still ohne Kompilieren.
+- **DDP-Test ohne qkv-Bias.** Der Gradient des Key-Bias ist exakt null, weil Softmax eine Verschiebung aller Scores nicht sieht. AdamW macht aus dem Rundungsrauschen darin volle Updates, und das fällt mit DDP anders aus als mit einem Prozess. Auf die Ausgaben des Modells wirkt der Key-Bias nicht.
