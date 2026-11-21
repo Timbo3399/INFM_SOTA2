@@ -10,7 +10,9 @@ from tests.helpers import MINI_BOOK, write_mini_book
 SEQ_LEN = 8
 
 
-class TextSplitsTest(TestCase):
+class MiniBookCase(TestCase):
+    """Mini-Buch in einem temporären Ordner, ohne eigene Tests."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
@@ -29,6 +31,8 @@ class TextSplitsTest(TestCase):
             seq_len=SEQ_LEN,
         )
 
+
+class TextSplitsTest(MiniBookCase):
     def test_splits_cover_the_cleaned_text(self):
         data = self.splits()
 
@@ -82,3 +86,42 @@ class TextSplitsTest(TestCase):
                 f"Schritte pro Epoche: {len(data.train_loader(4, seed=1))}"
             )
         )
+
+
+def step_rows(loaders: list) -> list[list[tuple[int, ...]]]:
+    """Pro Schritt die Eingaben aller Ränge zusammen, als sortierte Zeilen."""
+    steps = []
+    for batches in zip(*loaders, strict=True):
+        inputs = torch.cat([batch_inputs for batch_inputs, _ in batches])
+        steps.append(sorted(tuple(row.tolist()) for row in inputs))
+    return steps
+
+
+class DistributedTrainLoaderTest(MiniBookCase):
+    def test_same_windows_per_step_for_any_world_size(self):
+        # Gesamt-Batch 8: Schritt k enthält bei jeder Zahl der Prozesse dieselben
+        # Fenster, so rechnen 1, 2 und 4 Knoten in Lauf Nr. 5 dieselbe Arbeit
+        data = self.splits()
+        by_world_size = {
+            p: step_rows(
+                [
+                    data.distributed_train_loader(8 // p, 123, rank, p)
+                    for rank in range(p)
+                ]
+            )
+            for p in (1, 2, 4)
+        }
+
+        self.assertGreater(len(by_world_size[1]), 2)
+        self.assertEqual(by_world_size[2], by_world_size[1])
+        self.assertEqual(by_world_size[4], by_world_size[1])
+
+    def test_set_epoch_changes_order(self):
+        # Ohne set_epoch sähe jede Epoche dieselbe Reihenfolge
+        loader = self.splits().distributed_train_loader(4, 123, 0, 1)
+        first_epoch, _ = next(iter(loader))
+
+        loader.sampler.set_epoch(1)  # type: ignore[attr-defined]
+        second_epoch, _ = next(iter(loader))
+
+        self.assertFalse(torch.equal(first_epoch, second_epoch))
