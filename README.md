@@ -108,6 +108,8 @@ export TIKTOKEN_CACHE_DIR="$HOME/.cache/tiktoken"
 uv run python -c "import tiktoken; tiktoken.get_encoding('gpt2')"
 ```
 
+Vor dem Absenden eines Trainingsjobs mit `main.py` steht die kurze Checkliste in [docs/cluster-training.md](docs/cluster-training.md).
+
 Die torch-Pakete von PyPI brauchen CUDA 13.0, also einen aktuellen NVIDIA-Treiber, und laufen nicht auf V100.
 Kann der Cluster das nicht, kommt dieser Block in die `pyproject.toml`, danach `uv lock`. Er gilt dann für alle Linux-Rechner:
 
