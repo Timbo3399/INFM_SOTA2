@@ -8,11 +8,12 @@ from infm_sota2.env import Environment, version_mismatches
 
 
 def clean_environment(test: TestCase) -> None:
-    """Entfernt W&B-Modus und Datenordner der Person, die die Tests ausführt."""
+    """Entfernt W&B-Modus, Datenordner und torchrun-Variablen der Umgebung, in
+    der die Tests laufen."""
     patcher = mock.patch.dict(os.environ)
     patcher.start()
     test.addCleanup(patcher.stop)
-    for key in ("WANDB_MODE", "SOTA2_DATA_DIR"):
+    for key in ("WANDB_MODE", "SOTA2_DATA_DIR", "RANK", "LOCAL_RANK", "WORLD_SIZE"):
         os.environ.pop(key, None)
 
 
@@ -70,6 +71,26 @@ class EnvironmentVariablesTest(TestCase):
         self.assertEqual(
             Environment.detect(smoke_test=True).data_dir, Path.cwd() / "data"
         )
+
+    def test_detect_reads_torchrun_variables(self):
+        os.environ.update(RANK="1", LOCAL_RANK="0", WORLD_SIZE="2")
+
+        env = Environment.detect(smoke_test=True)
+
+        self.assertEqual((env.rank, env.local_rank, env.world_size), (1, 0, 2))
+        self.assertIs(env.launched_by_torchrun, True)
+
+    def test_detect_without_torchrun_is_single_process(self):
+        env = Environment.detect(smoke_test=True)
+
+        self.assertEqual((env.rank, env.local_rank, env.world_size), (0, 0, 1))
+        self.assertIs(env.launched_by_torchrun, False)
+
+    def test_partial_torchrun_variables_are_an_error(self):
+        os.environ["RANK"] = "0"
+
+        with self.assertRaisesRegex(ValueError, "WORLD_SIZE"):
+            Environment.detect(smoke_test=True)
 
     def test_empty_variables_count_as_unset(self):
         # wie ${VAR:-...} in slurm/setup.sh

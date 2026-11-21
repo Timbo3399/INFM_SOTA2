@@ -7,9 +7,8 @@ from unittest import TestCase
 import torch
 
 from infm_sota2.data import TextSplits
-from infm_sota2.env import Environment
 from infm_sota2.training import TrainConfig, Trainer, evaluate, train
-from tests.helpers import MINI_BOOK, tiny_model, write_mini_book
+from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
 CPU = torch.device("cpu")
 CONFIG = TrainConfig(
@@ -28,9 +27,7 @@ class TrainerTest(TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         base = Path(self.tmp.name)
         write_mini_book(base)
-        self.env = Environment(
-            False, base, base / "runs", CPU, "disabled", base / "data"
-        )
+        self.env = local_env(base)
         # Gekürzt, damit die Tests schnell bleiben
         max_chars = {"train": 1500, "val": 400, "test": 400}
         self.data = TextSplits.from_book(
