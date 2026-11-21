@@ -257,7 +257,7 @@ In Schritt 2 kann `train` nur, was der heutige `Trainer` kann: `GPTModel` oder `
 
 ### Konfiguration
 
-`configs/` enthält eine TOML-Datei pro Experiment: `smoke.toml`, `lotr-small-week4.toml` (Nr. 2), `lotr-small.toml` (Nr. 3 bis 5, mit dem Gitter der Suche), `lotr-small-main.toml` (Nr. 6), `lotr-medium.toml` (Nr. 7) und `lotr-large.toml` (Nr. 8). Auf der Kommandozeile lassen sich nur Lernrate, Batchgröße, Epochen, Prüfabstand und Laufname überschreiben. Alle wirksamen Werte gehen an W&B und in die JSON-Datei.
+`configs/` enthält eine TOML-Datei pro Lauf: `smoke-cpu.toml` (lokal), `smoke.toml` (Cluster), `lotr-small-week4.toml` (Nr. 2), `lotr-small.toml` (Nr. 3), `lotr-small-search.toml` (Nr. 4, mit dem Gitter der Suche), `lotr-small-scaling.toml` (Nr. 5), `lotr-small-main.toml` (Nr. 6), `lotr-medium.toml` (Nr. 7) und `lotr-large.toml` (Nr. 8). Auf der Kommandozeile gibt es nur `--config` und für die Suche `--grid-index`, jede Einstellung steht also in einer Datei im Repo. Alle wirksamen Werte gehen an W&B und in die JSON-Datei.
 
 Skizze von `lotr-small.toml`:
 
@@ -364,7 +364,7 @@ W&B läuft online, wenn Job 1 Internet auf den Rechenknoten findet. Sonst export
 
 ### Ergebnisse und Notebook
 
-Rang 0 jedes Laufs schreibt `results/week06/<benutzer>/<gruppe>/<lauf>.json`, der Benutzer ist `$USER`. Darin stehen die wirksame Konfiguration, Knoten, Job-ID, GPU, Treiber, die Versionen von torch, CUDA und NCCL, der Git-Commit, `TrainResult`, Test-Loss und Perplexity, Tokens/s, MFU, Speicher, die Wanduhrzeit von `fit`, der Verlauf der Validierungs-Losses, die Texte und gegebenenfalls der Fehler. Die Dateien kommen ins Repo. Sie enthalten keinen Buchtext, nur Texte, die die Modelle selbst erzeugt haben. Die W&B-Gruppen heißen `week6-smoke`, `week6-week4`, `week6-optimized`, `week6-search`, `week6-scaling`, `week6-main` und `week6-medium`. Die Namen der W&B-Läufe enthalten ebenfalls den Benutzernamen, damit sich Läufe verschiedener Personen nicht verwechseln lassen.
+Rang 0 jedes Laufs schreibt `results/week06/<benutzer>/<gruppe>/<lauf>-job<id>.json`, der Benutzer ist `$USER`. Die Job-ID im Namen sorgt dafür, dass eine Wiederholung nichts überschreibt. Liegt dieselbe Kombination der Suche zweimal vor, bricht die Auswertung mit beiden Dateinamen ab, statt still eine zu wählen. Darin stehen die wirksame Konfiguration, Knoten, Job-ID, GPU, Treiber, die Versionen von torch, CUDA und NCCL, der Git-Commit, `TrainResult`, Test-Loss und Perplexity, Tokens/s, MFU, Speicher, die Wanduhrzeit von `fit`, der Verlauf der Validierungs-Losses, die Texte und gegebenenfalls der Fehler. Die Dateien kommen ins Repo. Sie enthalten keinen Buchtext, nur Texte, die die Modelle selbst erzeugt haben. Die W&B-Gruppen heißen `week6-smoke`, `week6-week4`, `week6-optimized`, `week6-search`, `week6-scaling`, `week6-main` und `week6-medium`. Die Namen der W&B-Läufe enthalten ebenfalls den Benutzernamen, damit sich Läufe verschiedener Personen nicht verwechseln lassen.
 
 Ein neues Notebook `workbook_timo_cluster.ipynb` liest diese Dateien und läuft ohne GPU. Es zeigt die Umgebung aus Job 1, den Benchmark der L40S neben der A100 aus Woche 5, Woche 4 gegen optimiert, die Suche als Tabelle, Speedup und Effizienz als Diagramm mit der idealen Geraden, Hauptlauf und Medium mit Test-Loss, Verlauf und Texten sowie das Fazit. Die Logik dafür liegt getestet in `cluster/results.py`, so kann jede Person ein eigenes Notebook mit ihren Läufen bauen.
 
