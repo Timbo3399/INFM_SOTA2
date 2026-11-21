@@ -1,6 +1,7 @@
 import io
 import tempfile
 from contextlib import redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from unittest import TestCase
 
@@ -68,15 +69,20 @@ class TrainerTest(TestCase):
             eval_every=5,
             eval_batches=None,
             grad_clip=1.0,
-            use_amp=False,
+            precision="fp32",
             checkpoint_path=None,
             checkpoint_metadata={},
             log=lambda metrics, step: None,
+            eval_model=model,
         )
 
         result = self.fit(tiny_model(seed=1, vocab_size=50257), checkpoint_name=None)
 
-        self.assertEqual(result, direct)
+        # Die gemessene Geschwindigkeit ist bei zwei Läufen nie gleich
+        self.assertEqual(
+            replace(result, tokens_per_second=None),
+            replace(direct, tokens_per_second=None),
+        )
 
     def test_fit_keeps_best_checkpoint(self):
         model = tiny_model(seed=1, vocab_size=50257)

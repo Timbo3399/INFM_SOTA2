@@ -76,10 +76,11 @@ class Trainer:
             eval_every=config.eval_every,
             eval_batches=config.eval_batches,
             grad_clip=config.grad_clip,
-            use_amp=config.use_amp,
+            precision="fp16-mixed" if config.use_amp else "fp32",
             checkpoint_path=checkpoint_path,
             checkpoint_metadata={"name": name, "learning_rate": learning_rate},
             log=lambda metrics, step: run.log(metrics, step=step),
+            eval_model=model,
         )
         run.summary["best_val_loss"] = result.best_val_loss
         run.summary["best_step"] = result.best_step

@@ -57,7 +57,8 @@ class TrainRunTest(TestCase):
 
         files = self.written()
         self.assertEqual(len(files), 1)
-        self.assertEqual(files[0], record)
+        # JSON kennt keine Tupel, val_losses steht in der Datei als Liste
+        self.assertEqual(files[0], json.loads(json.dumps(record)))
         self.assertIsNone(record["error"])
         # deutlich besser als Raten über 50.257 Tokens
         self.assertLess(record["result"]["best_val_loss"], math.log(50257) - 1)
