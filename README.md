@@ -14,8 +14,12 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 | `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
 | `src/infm_sota2/model/` | `GPTModel`, `GPTModelV2` (aus `torch.nn`-Bausteinen mit `scaled_dot_product_attention`), `GPT2_SMALL_CONFIG`, `build_model` (Modell mit festem Seed), `download_weights` und `load_pretrained` für die OpenAI-Gewichte. |
 | `src/infm_sota2/training/` | `Trainer` mit `TrainConfig` (ein Lauf samt W&B und bestem Checkpoint), `ModelReport` (Modelle vergleichen), `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
-| `tests/` | Unittests für `src/infm_sota2/`. |
-| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md) und [Woche 5: Attention V2](docs/attention-v2.md). |
+| `tests/` | Unittests für `src/infm_sota2/` und die Skripte in `slurm/`. |
+| `slurm/` | Einrichtung (`setup.sh`) und Jobskripte für den Cluster, Anleitung in [docs/dachs.md](docs/dachs.md). |
+| `configs/` | Eine TOML-Datei pro Lauf auf dem Cluster. Jede Einstellung eines Laufs steht dort. |
+| `results/` | Ergebnisse der Läufe als JSON, `results/week06/<benutzer>/<gruppe>/<lauf>-job<id>.json`. |
+| `scripts/` | Hilfsskripte, z. B. `smoke_notebook.py` für den Notebook-Smoke-Test. |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md), [Woche 5: Attention V2](docs/attention-v2.md) und [Auf dem Cluster DACHS](docs/dachs.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
@@ -90,6 +94,9 @@ Pakete hinzufügen:
 - `uv.lock` immer mit committen.
 
 ### Auf dem Cluster
+
+Der Einstieg für alle steht in [docs/dachs.md](docs/dachs.md): Konto, SSH, Einrichtung mit `bash slurm/setup.sh` und unsere Jobs.
+`setup.sh` erledigt die Schritte aus diesem Abschnitt, hier steht, was dahintersteckt.
 
 ```bash
 export UV_NO_DEV=1

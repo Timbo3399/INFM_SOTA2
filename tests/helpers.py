@@ -1,5 +1,5 @@
 """Gemeinsame Test-Bausteine: ein winziges GPTModel, das auf der CPU schnell ist,
-und ein selbst geschriebenes Mini-Buch."""
+das selbst geschriebene Mini-Buch aus dem Paket und eine lokale Umgebung."""
 
 from pathlib import Path
 
@@ -7,6 +7,17 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from infm_sota2 import GPTModel
+from infm_sota2.data.mini_book import MINI_BOOK, write_mini_book
+from infm_sota2.env import Environment
+
+__all__ = [
+    "MINI_BOOK",
+    "TINY_CONFIG",
+    "local_env",
+    "pattern_loader",
+    "tiny_model",
+    "write_mini_book",
+]
 
 TINY_CONFIG = {
     "vocab_size": 20,
@@ -33,22 +44,13 @@ def pattern_loader(n_windows: int, batch_size: int) -> DataLoader:
     return DataLoader(TensorDataset(inputs, targets), batch_size=batch_size)
 
 
-# Marker und Titel, wie TextSplits.from_book sie aus CONFIG["data"] bekommt
-MINI_BOOK = {
-    "file": "mini-book.txt",
-    "start_line": "PROLOGUE",
-    "end_line": "APPENDIX A",
-    "book_title": "THE BOOK OF TESTS",
-}
-
-
-def write_mini_book(directory: Path) -> str:
-    """Legt ein Mini-Buch mit Vorspann, Erzählteil und Anhang an.
-
-    Gibt den Dateinamen zurück."""
-    paragraphs = [
-        f"Sentence number {i} tells a short story about tests." for i in range(200)
-    ]
-    lines = ["CONTENTS", "", "PROLOGUE", "", "\n\n".join(paragraphs), "", "APPENDIX A"]
-    (directory / MINI_BOOK["file"]).write_text("\n".join(lines), encoding="utf-8")
-    return MINI_BOOK["file"]
+def local_env(base_dir: Path) -> Environment:
+    """Auf der CPU, ohne W&B, alle Ordner unter ``base_dir``."""
+    return Environment(
+        in_colab=False,
+        base_dir=base_dir,
+        run_dir=base_dir / "checkpoints" / "runs",
+        device=torch.device("cpu"),
+        wandb_mode="disabled",
+        data_dir=base_dir / "data",
+    )

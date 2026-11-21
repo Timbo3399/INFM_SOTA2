@@ -1,0 +1,50 @@
+# Smoke-Lauf auf dem Cluster: Mini-Buch und winziges Modell, dauert wenige Minuten.
+# Prüft Slurm, torchrun, W&B-Modus, Checkpoint und JSON-Datei.
+#   sbatch slurm/train.sbatch --config configs/smoke.toml
+#   sbatch --nodes=2 slurm/train.sbatch --config configs/smoke.toml
+# Bis zum Umbau (Schritt 3) nur mit dem, was der heutige Trainer kann: fp16-mixed,
+# ohne compile und ohne fused AdamW. Danach bf16-mixed, inductor und fused.
+
+name = "smoke"
+group = "week6-smoke"
+seed = 123
+model_class = "GPTModelV2"
+evaluate_pretrained = false
+save_checkpoint = true
+report = true
+
+[data]
+file = "mini-book.txt"  # schreibt bash slurm/setup.sh
+start_line = "PROLOGUE"
+end_line = "APPENDIX A"
+book_title = "THE BOOK OF TESTS"
+train_ratio = 0.8
+val_ratio = 0.1
+seq_len = 32
+
+[model]
+vocab_size = 50257
+context_length = 32
+emb_dim = 32
+n_heads = 2
+n_layers = 2
+drop_rate = 0.1
+qkv_bias = true
+
+[train]
+batch_size = 4  # über alle GPUs zusammen
+learning_rate = 1e-2
+epochs = 2
+weight_decay = 0.1
+grad_clip = 1.0
+eval_every = 5
+precision = "fp16-mixed"
+compile_backend = "none"
+fused_adamw = false
+
+[generation]
+prompt = "Sentence number"  # so beginnt jeder Satz im Mini-Buch
+samples = 3
+max_new_tokens = 40
+temperature = 0.8
+top_k = 40

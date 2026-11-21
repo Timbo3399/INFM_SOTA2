@@ -28,7 +28,9 @@ class TrainerTest(TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         base = Path(self.tmp.name)
         write_mini_book(base)
-        self.env = Environment(False, base, base / "runs", CPU, "disabled")
+        self.env = Environment(
+            False, base, base / "runs", CPU, "disabled", base / "data"
+        )
         # Gekürzt, damit die Tests schnell bleiben
         max_chars = {"train": 1500, "val": 400, "test": 400}
         self.data = TextSplits.from_book(

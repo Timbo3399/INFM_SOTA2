@@ -38,12 +38,13 @@ build-backend = "uv_build"
 include = [
     "src/**/*.py",
     "tests/**/*.py",
+    "scripts/**/*.py",
 ]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 typeCheckingMode = "standard"
 pythonVersion = "3.12"

@@ -17,6 +17,7 @@ import torch
 from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
+from infm_sota2.model import GPTModel, GPTModelV2
 from infm_sota2.training.loop import batch_loss
 
 Precision = Literal["fp32", "fp16-mixed", "bf16-mixed", "bf16"]
@@ -51,6 +52,30 @@ class Variant:
     precision: Precision
     attention: Attention
     compile_backend: str | None
+
+
+def has_bf16(device: torch.device) -> bool:
+    """bf16 in Hardware: auf der CPU immer, auf der GPU ab Compute Capability 8.
+
+    Die T4 (7.5) emuliert bf16 nur über fp32, dort bleibt für 16 Bit fp16.
+    """
+    return device.type != "cuda" or torch.cuda.get_device_capability(device)[0] >= 8
+
+
+def slide20_variants(mixed: Precision, compile_backend: str) -> list[Variant]:
+    """Die sechs Varianten von Folie 20, wie in ``workbook_timo_attention_v2.ipynb``.
+
+    ``mixed`` ist ``bf16-mixed``, auf GPUs ohne bf16 in Hardware ``fp16-mixed``.
+    Nr. 3 rechnet immer in bf16 und gehört auf solchen GPUs übersprungen.
+    """
+    return [
+        Variant("1 Ausgangsstand", GPTModel, "fp32", "auto", None),
+        Variant("2 16 Bit mit autocast", GPTModel, mixed, "auto", None),
+        Variant("3 16 Bit, ganzes Modell", GPTModel, "bf16", "auto", None),
+        Variant("4 torch.nn ohne Flash", GPTModelV2, mixed, "math", None),
+        Variant("5 torch.nn mit Flash", GPTModelV2, mixed, "auto", None),
+        Variant("6 torch.compile", GPTModelV2, mixed, "auto", compile_backend),
+    ]
 
 
 @dataclass(frozen=True)
