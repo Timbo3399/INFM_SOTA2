@@ -69,7 +69,7 @@ def run(
     weiter. So bleibt ein gescheiterter Lauf in der Auswertung sichtbar.
     """
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    use_amp = _step2_use_amp(config, env, world_size)
+    _check_step2(config, env, world_size)
     book = env.data_dir / config.data.file
     if not book.is_file():
         raise FileNotFoundError(
@@ -144,7 +144,9 @@ def run(
             eval_every=config.train.eval_every,
             eval_batches=None,  # ganzer Validierungsteil wie in Woche 4
             grad_clip=config.train.grad_clip,
-            use_amp=use_amp,
+            precision=config.train.precision,  # fp32 oder fp16-mixed, siehe oben
+            compile_backend=None,
+            fused_adamw=False,
             seed=config.seed,
         )
         if env.device.type == "cuda":
@@ -187,8 +189,8 @@ def run(
     return record
 
 
-def _step2_use_amp(config: RunConfig, env: Environment, world_size: int) -> bool:
-    """Übersetzt ``precision`` für den heutigen Trainer (``use_amp``)."""
+def _check_step2(config: RunConfig, env: Environment, world_size: int) -> None:
+    """Lässt bis zu Task 12 nur zu, was der Trainer aus Schritt 2 konnte."""
     later = []
     if config.train.precision == "bf16-mixed":
         later.append("precision bf16-mixed")
@@ -202,7 +204,6 @@ def _step2_use_amp(config: RunConfig, env: Environment, world_size: int) -> bool
         raise ValueError(f"{', '.join(later)}: kommt mit Schritt 3 (Umbau nach Weg A)")
     if config.train.precision == "fp16-mixed" and env.device.type != "cuda":
         raise ValueError("fp16-mixed needs CUDA (GradScaler)")
-    return config.train.precision == "fp16-mixed"
 
 
 def _report_entry(report: ModelReport, name: str) -> dict[str, object]:
