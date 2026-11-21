@@ -1,9 +1,9 @@
 # Smoke-Lauf auf dem Cluster: Mini-Buch und winziges Modell, dauert wenige Minuten.
-# Prüft Slurm, torchrun, W&B-Modus, Checkpoint und JSON-Datei.
+# Prüft Slurm, torchrun, DDP, W&B-Modus, bf16, torch.compile, Checkpoint und
+# JSON-Datei. Bestanden: Der Job endet ohne Fehler, der Validierungs-Loss sinkt, und
+# die JSON-Datei liegt unter results/.
 #   sbatch slurm/train.sbatch --config configs/smoke.toml
 #   sbatch --nodes=2 slurm/train.sbatch --config configs/smoke.toml
-# Bis zum Umbau (Schritt 3) nur mit dem, was der heutige Trainer kann: fp16-mixed,
-# ohne compile und ohne fused AdamW. Danach bf16-mixed, inductor und fused.
 
 name = "smoke"
 group = "week6-smoke"
@@ -38,9 +38,9 @@ epochs = 2
 weight_decay = 0.1
 grad_clip = 1.0
 eval_every = 5
-precision = "fp16-mixed"
-compile_backend = "none"
-fused_adamw = false
+precision = "bf16-mixed"
+compile_backend = "inductor"
+fused_adamw = true
 
 [generation]
 prompt = "Sentence number"  # so beginnt jeder Satz im Mini-Buch

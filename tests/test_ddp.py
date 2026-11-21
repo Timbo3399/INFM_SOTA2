@@ -7,6 +7,7 @@ Gesamt-Batchgröße in jedem Schritt dieselben Fenster verteilt.
 """
 
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -17,10 +18,13 @@ import torch
 import torch.distributed as dist
 from torch.multiprocessing.spawn import spawn
 
+from infm_sota2.cluster.config import load_config
+from infm_sota2.cluster.train import run
 from infm_sota2.data import TextSplits
 from infm_sota2.training import TrainConfig, Trainer
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
+ROOT = Path(__file__).resolve().parent.parent
 WORLD_SIZE = 2
 CONFIG = TrainConfig(
     weight_decay=0.1,
@@ -77,8 +81,32 @@ def worker(rank: int, root: str) -> None:
     )
     try:
         train_once(folder / f"rank{rank}", folder / "data", rank, WORLD_SIZE)
+        smoke_run(folder / f"smoke{rank}", folder / "data", rank, WORLD_SIZE)
     finally:
         dist.destroy_process_group()
+
+
+def smoke_run(base: Path, data_dir: Path, rank: int, world_size: int) -> None:
+    """Der Smoke-Lauf aus configs/smoke-cpu.toml, wie unter torchrun."""
+    base.mkdir(parents=True, exist_ok=True)
+    env = replace(
+        local_env(base),
+        data_dir=data_dir,
+        rank=rank,
+        world_size=world_size,
+        launched_by_torchrun=True,
+    )
+    # smoke-cpu.toml mit bf16, compile und Report, gekürzt auf eine kurze Epoche
+    config = load_config(ROOT / "configs" / "smoke-cpu.toml")
+    config = replace(
+        config,
+        data=replace(config.data, max_chars={"train": 3000, "val": 600, "test": 600}),
+        train=replace(config.train, epochs=1),
+        generation=replace(config.generation, samples=1, max_new_tokens=5),
+    )
+    with redirect_stdout(io.StringIO()):
+        record = run(config, env, "tester", None, ROOT)
+    (base / "returned.json").write_text(json.dumps(record), encoding="utf-8")
 
 
 @unittest.skipUnless(dist.is_available() and dist.is_gloo_available(), "braucht Gloo")
@@ -112,3 +140,17 @@ class DistributedDataParallelTest(unittest.TestCase):
 
         self.assertEqual([path.name for path in rank0.glob("*.pth")], ["best.pth"])
         self.assertFalse((self.root / "rank1" / "checkpoints").exists())
+
+    def test_two_process_smoke_run_writes_one_file(self):
+        files = sorted(self.root.glob("smoke*/results/**/*.json"))
+        returned = [
+            json.loads((self.root / f"smoke{rank}" / "returned.json").read_text())
+            for rank in range(WORLD_SIZE)
+        ]
+
+        # Ordner des Rangs, der die Datei geschrieben hat
+        writers = [path.relative_to(self.root).parts[0] for path in files]
+        self.assertEqual(writers, ["smoke0"])
+        self.assertEqual(returned[1], {})
+        self.assertEqual(returned[0]["environment"]["world_size"], 2)
+        self.assertIsNone(returned[0]["error"])

@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 from unittest import TestCase, mock
 
-from infm_sota2.cluster.config import RunConfig, load_config
+import torch
+
+from infm_sota2.cluster.config import RunConfig, load_config, with_grid
 from infm_sota2.cluster.train import run
 from infm_sota2.model import GPTModel
 from infm_sota2.training import Trainer
@@ -75,16 +77,6 @@ class TrainRunTest(TestCase):
         self.assertIn("SOTA2_DATA_DIR", message)
         self.assertIn("slurm/setup.sh", message)
 
-    def test_step3_features_are_rejected_for_now(self):
-        with self.assertRaisesRegex(ValueError, "Schritt 3"):
-            self.run_quietly(SMOKE_CPU)  # bf16-mixed und eager
-
-    def test_several_processes_are_rejected_for_now(self):
-        os.environ["WORLD_SIZE"] = "2"
-
-        with self.assertRaisesRegex(ValueError, "Schritt 3"):
-            self.run_quietly(step2_config(SMOKE_CPU))
-
     def test_fp16_on_cpu_is_an_error(self):
         config = replace(
             SMOKE_CPU,
@@ -135,3 +127,50 @@ class TrainRunTest(TestCase):
             pretrained["perplexity"], math.exp(pretrained["test_loss"])
         )
         self.assertIsNone(record["error"])
+
+    def test_smoke_run_with_bf16_and_compile(self):
+        self.env.data_dir.mkdir()
+        write_mini_book(self.env.data_dir)
+
+        record = self.run_quietly(SMOKE_CPU)  # bf16-mixed und eager, unverändert
+
+        self.assertIsNone(record["error"])
+        val_losses = record["result"]["val_losses"]
+        self.assertTrue(val_losses)
+        self.assertLess(val_losses[-1][1], val_losses[0][1])
+        self.assertEqual(record["environment"]["world_size"], 1)
+        self.assertIsNone(record["mfu"])  # ohne bekannte GPU
+
+    def test_out_of_memory_writes_error_record(self):
+        self.env.data_dir.mkdir()
+        write_mini_book(self.env.data_dir)
+        oom = torch.OutOfMemoryError("CUDA out of memory (simuliert)")
+
+        with (
+            mock.patch.object(Trainer, "fit", side_effect=oom),
+            self.assertRaises(torch.OutOfMemoryError),
+        ):
+            self.run_quietly(SMOKE_CPU)
+
+        files = self.written()
+        self.assertEqual(len(files), 1)
+        self.assertIn("out of memory", files[0]["error"])
+        self.assertIsNone(files[0]["result"])
+
+    def test_grid_run_uses_search_settings(self):
+        self.env.data_dir.mkdir()
+        write_mini_book(self.env.data_dir)
+        search = (
+            "\n[search]\nlearning_rates = [1e-3, 1e-2]\n"
+            "batch_sizes = [2, 4]\nepochs = 1\n"
+        )
+        path = self.base / "search.toml"
+        text = (ROOT / "configs" / "smoke-cpu.toml").read_text(encoding="utf-8")
+        path.write_text(text + search, encoding="utf-8")
+
+        record = self.run_quietly(with_grid(load_config(path), 1))
+
+        names = [p.name for p in (self.base / "results").rglob("*.json")]
+        self.assertEqual(names, ["smoke-cpu-lr0.001-bs4-gpus1-local.json"])
+        self.assertEqual(record["config"]["train"]["epochs"], 1)
+        self.assertEqual(record["config"]["train"]["batch_size"], 4)

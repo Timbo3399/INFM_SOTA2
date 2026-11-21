@@ -1,0 +1,47 @@
+# Lauf Nr. 6: Pre-Training von GPT-2 Small auf 2 Knoten mit der besten Kombination
+# der Suche, 20 Epochen, bester Stand nach Validierungs-Loss (Folie 46).
+#   sbatch --nodes=2 slurm/train.sbatch --config configs/lotr-small-main.toml
+
+name = "lotr-small-main"
+group = "week6-main"
+seed = 123
+model_class = "GPTModelV2"
+evaluate_pretrained = false
+save_checkpoint = true
+report = true
+
+[data]
+file = "The-lord-of-the-rings.txt"
+start_line = "PROLOGUE"
+end_line = "APPENDIX A"
+book_title = "THE LORD OF THE RINGS"
+train_ratio = 0.8
+val_ratio = 0.1
+seq_len = 256
+
+[model]  # GPT-2 Small mit 256 Tokens Kontext wie in Woche 4
+vocab_size = 50257
+context_length = 256
+emb_dim = 768
+n_heads = 12
+n_layers = 12
+drop_rate = 0.1
+qkv_bias = true
+
+[train]
+batch_size = 8  # nach der Suche eintragen
+learning_rate = 4e-4  # nach der Suche eintragen
+epochs = 20
+weight_decay = 0.1
+grad_clip = 1.0
+eval_every = 100
+precision = "bf16-mixed"
+compile_backend = "inductor"
+fused_adamw = true
+
+[generation]
+prompt = "The Elves are"
+samples = 3
+max_new_tokens = 40
+temperature = 0.8
+top_k = 40

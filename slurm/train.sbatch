@@ -22,7 +22,7 @@ fi
 cd "$SLURM_SUBMIT_DIR"
 source slurm/common.sh
 
-srun torchrun \
+srun --kill-on-bad-exit=1 torchrun \
   --nnodes="$SLURM_NNODES" \
   --nproc-per-node="$SLURM_GPUS_ON_NODE" \
   --rdzv-id="$SLURM_JOB_ID" \

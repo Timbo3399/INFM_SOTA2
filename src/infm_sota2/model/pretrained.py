@@ -1,4 +1,4 @@
-"""GPT-2-Small-Konfiguration, Download und Laden der OpenAI-Gewichte."""
+"""GPT-2-Konfigurationen, Download und Laden der OpenAI-Gewichte (Small)."""
 
 import hashlib
 import shutil
@@ -20,6 +20,20 @@ GPT2_SMALL_CONFIG: dict[str, int | float | bool] = {
     "n_layers": 12,
     "drop_rate": 0.1,
     "qkv_bias": True,
+}
+# GPT-2-Paper, Tabelle 2: rund 350 und 760 Mio. Parameter mit geteiltem Embedding,
+# in unserem GPTModel mit eigenem out_head rund 405 und 840 Mio.
+GPT2_MEDIUM_CONFIG = {
+    **GPT2_SMALL_CONFIG,
+    "emb_dim": 1024,
+    "n_heads": 16,
+    "n_layers": 24,
+}
+GPT2_LARGE_CONFIG = {
+    **GPT2_SMALL_CONFIG,
+    "emb_dim": 1280,
+    "n_heads": 20,
+    "n_layers": 36,
 }
 
 # OpenAI-Gewichte im Format von GPTModel (Raschka, "Build a LLM from Scratch").

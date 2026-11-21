@@ -24,7 +24,7 @@ source slurm/common.sh
 
 nvidia-smi
 
-srun torchrun \
+srun --kill-on-bad-exit=1 torchrun \
   --nnodes="$SLURM_NNODES" \
   --nproc-per-node="$SLURM_GPUS_ON_NODE" \
   --rdzv-id="$SLURM_JOB_ID" \
@@ -34,5 +34,5 @@ srun torchrun \
 
 # Der Benchmark misst eine einzelne GPU, bei mehreren Knoten fällt er weg
 if ((SLURM_NNODES == 1)); then
-  srun python -m infm_sota2.cluster.benchmark
+  srun --kill-on-bad-exit=1 python -m infm_sota2.cluster.benchmark
 fi
