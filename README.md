@@ -9,13 +9,18 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 | Pfad | Inhalt |
 |---|---|
 | `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
-| `src/infm_sota2/` | Gemeinsamer Python-Code, später auch die Trainingsskripte für den Cluster. `env.py`: `Environment` für Colab oder lokal, Pfade, Gerät und W&B-Login. `benchmark.py`: `Benchmark` misst Tokens/s, Speicher und MFU (Woche 5). |
+| `src/infm_sota2/` | Gemeinsamer Python-Code. `env.py`: `Environment` für Colab, lokal oder unter `torchrun`, mit Pfaden, Gerät, Rang und W&B-Modus. `benchmark.py`: `Benchmark` misst Tokens/s, Speicher und MFU (Woche 5). |
 | `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. `clean_book_text` und `split_text` bereiten Buchtexte vor, `TextSplits` macht daraus Training, Validierung, Test und die Loader. |
 | `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
 | `src/infm_sota2/model/` | `GPTModel`, `GPTModelV2` (aus `torch.nn`-Bausteinen mit `scaled_dot_product_attention`), `GPT2_SMALL_CONFIG`, `build_model` (Modell mit festem Seed), `download_weights` und `load_pretrained` für die OpenAI-Gewichte. |
 | `src/infm_sota2/training/` | `Trainer` mit `TrainConfig` (ein Lauf samt W&B und bestem Checkpoint), `ModelReport` (Modelle vergleichen), `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
-| `tests/` | Unittests für `src/infm_sota2/`. |
-| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md) und [Woche 5: Attention V2](docs/attention-v2.md). |
+| `src/infm_sota2/cluster/` | Einstiegspunkte für die Jobs auf dem Cluster (Woche 6): `check` (Job 1), `benchmark` (Lauf Nr. 1) und `train` (alle Trainingsläufe). Dazu `config` liest die TOML-Dateien, `results` schreibt die JSON-Dateien und rechnet die Tabellen für Suche und Skalierung, `distributed` startet die Prozessgruppe für DDP. |
+| `tests/` | Unittests für `src/infm_sota2/` und die Skripte in `slurm/`. |
+| `slurm/` | Einrichtung (`setup.sh`) und Jobskripte für den Cluster, Anleitung in [docs/dachs.md](docs/dachs.md). |
+| `configs/` | Eine TOML-Datei pro Lauf auf dem Cluster. Jede Einstellung eines Laufs steht dort. |
+| `results/` | Ergebnisse der Läufe als JSON, `results/week06/<benutzer>/<gruppe>/<lauf>-job<id>.json`. |
+| `scripts/` | Hilfsskripte, z. B. `smoke_notebook.py` für den Notebook-Smoke-Test. |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md), [Woche 5: Attention V2](docs/attention-v2.md), [Woche 6: Pre-Training auf dem Cluster](docs/cluster-training.md) und [Auf dem Cluster DACHS](docs/dachs.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
@@ -90,6 +95,9 @@ Pakete hinzufügen:
 - `uv.lock` immer mit committen.
 
 ### Auf dem Cluster
+
+Der Einstieg für alle steht in [docs/dachs.md](docs/dachs.md): Konto, SSH, Einrichtung mit `bash slurm/setup.sh` und unsere Jobs.
+`setup.sh` erledigt die Schritte aus diesem Abschnitt, hier steht, was dahintersteckt.
 
 ```bash
 export UV_NO_DEV=1

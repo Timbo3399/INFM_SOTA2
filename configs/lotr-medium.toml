@@ -1,0 +1,48 @@
+# Lauf Nr. 7: GPT-2 Medium, rund 405 Mio. Parameter, sonst wie Nr. 6 (Folie 46).
+# Halbe Lernrate von Nr. 6, wie im GPT-3-Paper (Tabelle 2.1: 6e-4 für 125 Mio.,
+# 3e-4 für 350 Mio. Parameter).
+#   sbatch --nodes=2 slurm/train.sbatch --config configs/lotr-medium.toml
+
+name = "lotr-medium"
+group = "week6-medium"
+seed = 123
+model_class = "GPTModelV2"
+evaluate_pretrained = false
+save_checkpoint = true
+report = true
+
+[data]
+file = "The-lord-of-the-rings.txt"
+start_line = "PROLOGUE"
+end_line = "APPENDIX A"
+book_title = "THE LORD OF THE RINGS"
+train_ratio = 0.8
+val_ratio = 0.1
+seq_len = 256
+
+[model]  # GPT-2 Medium mit 256 Tokens Kontext
+vocab_size = 50257
+context_length = 256
+emb_dim = 1024
+n_heads = 16
+n_layers = 24
+drop_rate = 0.1
+qkv_bias = true
+
+[train]
+batch_size = 8  # nach der Suche eintragen, wie in lotr-small-main.toml
+learning_rate = 2e-4  # nach der Suche eintragen: halbe Lernrate aus lotr-small-main.toml
+epochs = 20
+weight_decay = 0.1
+grad_clip = 1.0
+eval_every = 100
+precision = "bf16-mixed"
+compile_backend = "inductor"
+fused_adamw = true
+
+[generation]
+prompt = "The Elves are"
+samples = 3
+max_new_tokens = 40
+temperature = 0.8
+top_k = 40

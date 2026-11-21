@@ -6,7 +6,7 @@ from typing import Literal
 
 import tiktoken
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, DistributedSampler
 
 from infm_sota2.data.cleaning import CleaningStats, clean_book_text, split_text
 from infm_sota2.data.dataset import BPEDataset
@@ -79,6 +79,33 @@ class TextSplits:
             shuffle=True,
             drop_last=True,
             generator=torch.Generator().manual_seed(seed),
+        )
+
+    def distributed_train_loader(
+        self, batch_size: int, seed: int, rank: int, world_size: int
+    ) -> DataLoader:
+        """Train-Loader für Rang ``rank`` von ``world_size``, ``batch_size`` Fenster
+        pro Prozess. Braucht keine Prozessgruppe.
+
+        Der Sampler mischt alle Fenster mit ``seed + epoch`` und gibt Rang r die
+        Fenster r, r + p, r + 2p usw. Bei gleicher Gesamt-Batchgröße B enthält
+        Schritt k deshalb bei jeder Zahl p der Prozesse die Fenster k·B bis
+        (k+1)·B − 1 der gemischten Reihenfolge. Vor jeder Epoche muss
+        ``sampler.set_epoch(epoch)`` laufen, sonst bleibt die Reihenfolge gleich.
+        """
+        sampler = DistributedSampler(
+            self.datasets["train"],
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=True,
+            seed=seed,
+            drop_last=True,
+        )
+        return DataLoader(
+            self.datasets["train"],
+            batch_size=batch_size,
+            sampler=sampler,
+            drop_last=True,
         )
 
     def loader(self, split: Literal["val", "test"], batch_size: int) -> DataLoader:

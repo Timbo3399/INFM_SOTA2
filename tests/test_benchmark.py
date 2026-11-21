@@ -4,7 +4,14 @@ from unittest import TestCase
 import torch
 from torch import nn
 
-from infm_sota2.benchmark import Benchmark, Variant, flops_per_token, peak_tflops
+from infm_sota2.benchmark import (
+    Benchmark,
+    Variant,
+    flops_per_token,
+    has_bf16,
+    peak_tflops,
+    slide20_variants,
+)
 from infm_sota2.model import GPTModel, GPTModelV2
 from tests.helpers import TINY_CONFIG, tiny_model
 
@@ -29,6 +36,10 @@ class FlopsTest(TestCase):
         self.assertEqual(
             flops_per_token(GPTModelV2(TINY_CONFIG), TINY_CONFIG, 8), TINY_FLOPS
         )
+
+    def test_cpu_has_bf16(self):
+        # autocast mit bfloat16 läuft auf der CPU, so lässt sich bf16 lokal testen
+        self.assertTrue(has_bf16(CPU))
 
     def test_peak_tflops_by_gpu_name(self):
         cases = [
@@ -118,3 +129,34 @@ class BenchmarkTest(TestCase):
     def test_fp16_needs_cuda(self):
         with self.assertRaisesRegex(ValueError, "CUDA"):
             self.bench.run(Variant("V1 fp16", GPTModel, "fp16-mixed", "auto", None))
+
+
+class Slide20VariantsTest(TestCase):
+    def test_slide20_variants_match_week5(self):
+        # fp16-mixed statt bf16-mixed, damit sich die übergebene Präzision von
+        # der festen bf16 bei Nr. 3 unterscheidet
+        variants = slide20_variants("fp16-mixed", "eager")
+
+        self.assertEqual(
+            [v.name for v in variants],
+            [
+                "1 Ausgangsstand",
+                "2 16 Bit mit autocast",
+                "3 16 Bit, ganzes Modell",
+                "4 torch.nn ohne Flash",
+                "5 torch.nn mit Flash",
+                "6 torch.compile",
+            ],
+        )
+        self.assertEqual(
+            [v.model_cls for v in variants], [GPTModel] * 3 + [GPTModelV2] * 3
+        )
+        self.assertEqual(
+            [v.precision for v in variants],
+            ["fp32", "fp16-mixed", "bf16", "fp16-mixed", "fp16-mixed", "fp16-mixed"],
+        )
+        self.assertEqual(
+            [v.attention for v in variants],
+            ["auto", "auto", "auto", "math", "auto", "auto"],
+        )
+        self.assertEqual([v.compile_backend for v in variants], [None] * 5 + ["eager"])
