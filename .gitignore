@@ -70,8 +70,9 @@ slurm-*.out
 slurm-*.err
 .coverage
 
-# --- Ausnahmen für Paket-Code: Unterordner in src/ dürfen data/, models/, checkpoints/ heißen ---
+# --- Ausnahmen für Paket-Code: Unterordner in src/ und old/ dürfen data/, models/, checkpoints/ heißen ---
 !src/**/data/
+!old/**/data/
 !src/**/models/
 !src/**/checkpoints/
 

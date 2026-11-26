@@ -21,3 +21,7 @@ Zurück geht es mit `git switch -`.
 | `docs/lotr-training.md` | Entwurf und Ergebnisse von Woche 4, dazu die Regeln für die Bereinigung des Buchtexts, nach denen der Code bis heute bereinigt |
 | `docs/attention-v2.md` | Entwurf und Ergebnisse von Woche 5, dazu die Herleitung von FLOPs und MFU im Benchmark |
 | `docs/plans/` | die Umsetzungspläne von Woche 4 bis 6 |
+| `src/infm_sota2/data/dataloader.py`, `embedding.py` | `create_dataloader` und `Embeddings` aus Woche 2. Das Training nutzt `TextSplits`, und die Embeddings stecken im Modell. |
+| `src/infm_sota2/data/dataset.py` | alter Stand mit `BPEDataset.decode` und `vocab_size`, die nur die Notebooks von Woche 2 brauchten |
+| `src/infm_sota2/transformer/attention.py` | alter Stand mit `SelfAttention` und `CausalAttention`, den Vorstufen von `MultiHeadAttention` aus Woche 3 |
+| `tests/test_dataloader.py`, `test_attention.py` | alter Stand mit den Tests für diese Bausteine |

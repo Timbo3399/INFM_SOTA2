@@ -37,10 +37,3 @@ class BPEDataset(Dataset):
         start = idx * self.stride
         seq = self.tokens[start : start + self.seq_len + 1]
         return seq[:-1], seq[1:]
-
-    def decode(self, tokens):
-        return self.tokenizer.decode(tokens)
-
-    @property
-    def vocab_size(self):
-        return self.tokenizer.n_vocab

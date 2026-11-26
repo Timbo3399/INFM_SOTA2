@@ -6,9 +6,9 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from infm_sota2 import GPTModel
 from infm_sota2.data.mini_book import MINI_BOOK, write_mini_book
 from infm_sota2.env import Environment
+from infm_sota2.model import GPTModel
 
 __all__ = [
     "MINI_BOOK",

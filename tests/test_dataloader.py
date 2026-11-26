@@ -2,62 +2,11 @@ from unittest import TestCase
 
 import tiktoken
 import torch
-from torch.utils.data import DataLoader
 
-from infm_sota2 import create_dataloader
-from infm_sota2.data import BPEDataset, Embeddings
-
-
-class CreateDataloaderTest(TestCase):
-    def test_is_public_and_builds_components(self):
-        dataloader, embeddings, dataset = create_dataloader(
-            "hello world " * 20,
-            seq_len=8,
-            batch_size=2,
-            shuffle=False,
-        )
-
-        self.assertIsInstance(dataloader, DataLoader)
-        self.assertIsInstance(embeddings, Embeddings)
-        self.assertIsInstance(dataset, BPEDataset)
-        self.assertGreater(len(dataset), 0)
-
-        inputs, targets = next(iter(dataloader))
-        self.assertEqual(inputs.shape, targets.shape)
-        self.assertEqual(inputs.shape[1], 8)
-        self.assertEqual(inputs.dtype, torch.int64)
-        self.assertEqual(targets.dtype, torch.int64)
-
-
-class EmbeddingsTest(TestCase):
-    def test_returns_token_and_position_embeddings(self):
-        embeddings = Embeddings(vocab_size=16, emb_dim=4, max_len=3)
-
-        output = embeddings(torch.zeros((2, 3), dtype=torch.long))
-
-        self.assertEqual(output.shape, (2, 3, 4))
-
-    def test_rejects_sequences_longer_than_max_len(self):
-        embeddings = Embeddings(vocab_size=16, emb_dim=4, max_len=3)
-
-        with self.assertRaisesRegex(
-            AssertionError, "Sequence length 4 exceeds maximum length 3"
-        ):
-            embeddings(torch.zeros((1, 4), dtype=torch.long))
+from infm_sota2.data import BPEDataset
 
 
 class BPEDatasetTest(TestCase):
-    def test_decodes_tokens_and_exposes_vocabulary_size(self):
-        dataset = BPEDataset("hello world " * 20, seq_len=8)
-
-        inputs, _ = dataset[0]
-
-        self.assertEqual(
-            dataset.decode(inputs.tolist()),
-            "hello world hello world hello world hello world",
-        )
-        self.assertGreater(dataset.vocab_size, 0)
-
     def test_samples_have_seq_len_tokens_and_shifted_targets(self):
         dataset = BPEDataset("hello world " * 20, seq_len=8)
 

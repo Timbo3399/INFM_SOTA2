@@ -4,8 +4,7 @@ from unittest import TestCase
 
 import torch
 
-from infm_sota2 import GPTModel
-from infm_sota2.model import build_model, load_pretrained
+from infm_sota2.model import GPTModel, build_model, load_pretrained
 from tests.helpers import TINY_CONFIG, tiny_model
 
 CPU = torch.device("cpu")
