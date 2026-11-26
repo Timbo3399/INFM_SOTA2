@@ -127,7 +127,6 @@ def run(
             weight_decay=config.train.weight_decay,
             batch_size=config.train.batch_size,
             eval_every=config.train.eval_every,
-            eval_batches=None,  # ganzer Validierungsteil wie in Woche 4
             grad_clip=config.train.grad_clip,
             precision=config.train.precision,
             compile_backend=config.train.compile_backend,

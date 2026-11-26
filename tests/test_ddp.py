@@ -30,7 +30,6 @@ CONFIG = TrainConfig(
     weight_decay=0.1,
     batch_size=8,  # über beide Prozesse zusammen
     eval_every=5,
-    eval_batches=None,
     grad_clip=1.0,
     precision="fp32",
     compile_backend=None,

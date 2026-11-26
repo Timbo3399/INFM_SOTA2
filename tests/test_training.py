@@ -33,20 +33,9 @@ class NanModel(nn.Module):
 class EvaluateTest(TestCase):
     def test_untrained_loss_is_close_to_log_vocab(self):
         # Ein untrainiertes Modell rät: Loss ≈ ln(vocab_size)
-        loss = evaluate(tiny_model(seed=123), pattern_loader(16, 4), CPU, None)
+        loss = evaluate(tiny_model(seed=123), pattern_loader(16, 4), CPU)
 
         self.assertAlmostEqual(loss, math.log(TINY_CONFIG["vocab_size"]), delta=0.5)
-
-    def test_evaluate_respects_max_batches(self):
-        model = tiny_model(seed=123)
-        loader = pattern_loader(16, 4)
-        inputs, targets = next(iter(loader))
-
-        loss = evaluate(model, loader, CPU, max_batches=1)
-
-        with torch.no_grad():
-            expected = batch_loss(model.eval(), inputs, targets).item()
-        self.assertAlmostEqual(loss, expected, places=6)
 
     def test_evaluate_weights_batches_by_token_count(self):
         model = tiny_model(seed=123)
@@ -54,7 +43,7 @@ class EvaluateTest(TestCase):
         all_inputs = torch.cat([x for x, _ in loader])
         all_targets = torch.cat([y for _, y in loader])
 
-        loss = evaluate(model, loader, CPU, None)
+        loss = evaluate(model, loader, CPU)
 
         with torch.no_grad():
             expected = batch_loss(model.eval(), all_inputs, all_targets).item()
@@ -63,7 +52,7 @@ class EvaluateTest(TestCase):
     def test_evaluate_restores_training_mode(self):
         model = tiny_model(seed=123).train()
 
-        evaluate(model, pattern_loader(4, 4), CPU, None)
+        evaluate(model, pattern_loader(4, 4), CPU)
 
         self.assertTrue(model.training)
 
@@ -85,7 +74,6 @@ class TrainTest(TestCase):
             "device": CPU,
             "epochs": 1,
             "eval_every": 2,
-            "eval_batches": None,
             "grad_clip": 1.0,
             "precision": "fp32",
             "checkpoint_path": None,
@@ -97,7 +85,7 @@ class TrainTest(TestCase):
 
     def test_training_lowers_validation_loss(self):
         model = tiny_model(seed=123)
-        before = evaluate(model, pattern_loader(4, 4), CPU, None)
+        before = evaluate(model, pattern_loader(4, 4), CPU)
 
         result = self.run_train(model, epochs=3)
 
@@ -143,7 +131,7 @@ class TrainTest(TestCase):
         self.assertEqual(metadata["step"], result.best_step)
         self.assertEqual(metadata["val_loss"], result.best_val_loss)
         self.assertAlmostEqual(
-            evaluate(restored, pattern_loader(4, 4), CPU, None),
+            evaluate(restored, pattern_loader(4, 4), CPU),
             result.best_val_loss,
             places=5,
         )
@@ -169,7 +157,7 @@ class TrainTest(TestCase):
 
     def test_bf16_mixed_trains_on_cpu(self):
         model = tiny_model(seed=123)
-        before = evaluate(model, pattern_loader(4, 4), CPU, None)
+        before = evaluate(model, pattern_loader(4, 4), CPU)
 
         result = self.run_train(model, epochs=3, precision="bf16-mixed")
 

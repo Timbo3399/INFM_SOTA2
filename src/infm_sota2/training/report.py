@@ -41,7 +41,7 @@ class ModelReport:
     def add(self, name: str, model: nn.Module, context_size: int) -> None:
         """Misst den Test-Loss, erzeugt ``samples`` Texte und gibt beides aus."""
         test_loss = evaluate(
-            model, self.data.loader("test", self.batch_size), self.device, None
+            model, self.data.loader("test", self.batch_size), self.device
         )
         self._test_losses[name] = test_loss
         self._texts[name] = [
@@ -64,18 +64,8 @@ class ModelReport:
         for i, text in enumerate(self._texts[name], 1):
             print(f"  {i}. {self.prompt}{text}")
 
-    def add_texts(self, name: str, texts: list[str]) -> None:
-        """Fortsetzungen von außerhalb, z. B. von Claude. Ohne Loss."""
-        self._texts[name] = texts
-
     def test_loss(self, name: str) -> float:
         return self._test_losses[name]
-
-    def losses(self) -> list[dict[str, object]]:
-        return [
-            {"Modell": name, "Test-Loss": loss, "Perplexity": math.exp(loss)}
-            for name, loss in self._test_losses.items()
-        ]
 
     def completions(self) -> list[dict[str, object]]:
         """Alle Texte mit der längsten Wortfolge, die wörtlich im Trainingstext

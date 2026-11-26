@@ -31,21 +31,14 @@ def batch_loss(model: nn.Module, inputs: Tensor, targets: Tensor) -> Tensor:
     return F.cross_entropy(logits.flatten(0, 1).float(), targets.flatten())
 
 
-def evaluate(
-    model: nn.Module, loader: DataLoader, device: torch.device, max_batches: int | None
-) -> float:
-    """Mittlerer Loss pro Token über die ersten ``max_batches`` Batches.
-
-    ``max_batches=None`` nimmt alle Batches.
-    """
+def evaluate(model: nn.Module, loader: DataLoader, device: torch.device) -> float:
+    """Mittlerer Loss pro Token über alle Batches von ``loader``."""
     was_training = model.training
     model.eval()
     total_loss = 0.0
     total_tokens = 0
     with torch.no_grad():
-        for i, (inputs, targets) in enumerate(loader):
-            if max_batches is not None and i >= max_batches:
-                break
+        for inputs, targets in loader:
             loss = batch_loss(model, inputs.to(device), targets.to(device))
             total_loss += loss.item() * targets.numel()
             total_tokens += targets.numel()
@@ -76,7 +69,6 @@ def train(
     device: torch.device,
     epochs: int,
     eval_every: int,
-    eval_batches: int | None,
     grad_clip: float,
     precision: TrainPrecision,
     checkpoint_path: Path | None,
@@ -128,7 +120,7 @@ def train(
             torch.cuda.synchronize(device)  # alle Schritte des Intervalls fertig
         rate = interval_tokens / (time.perf_counter() - interval_start)
         interval_rates.append(rate)
-        val_loss = evaluate(eval_model, val_loader, device, eval_batches)
+        val_loss = evaluate(eval_model, val_loader, device)
         val_losses.append((step, val_loss))
         log(
             {

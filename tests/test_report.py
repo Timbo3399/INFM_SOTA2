@@ -1,5 +1,4 @@
 import io
-import math
 import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -55,11 +54,7 @@ class ModelReportTest(TestCase):
 
         self.add(report, "A")
 
-        expected = evaluate(self.model, self.data.loader("test", 4), CPU, None)
-        self.assertEqual(
-            report.losses(),
-            [{"Modell": "A", "Test-Loss": expected, "Perplexity": math.exp(expected)}],
-        )
+        expected = evaluate(self.model, self.data.loader("test", 4), CPU)
         self.assertEqual(report.test_loss("A"), expected)
 
     def test_same_seed_gives_same_texts(self):
@@ -70,23 +65,16 @@ class ModelReportTest(TestCase):
 
         self.assertEqual(first.completions(), second.completions())
 
-    def test_external_texts_appear_only_in_completions(self):
-        report = self.report()
-        self.add(report, "A")
-
-        report.add_texts("Claude", ["x", "y"])
-
-        names = [row["Modell"] for row in report.completions()]
-        self.assertEqual(names, ["A", "A", "Claude", "Claude"])
-        self.assertEqual([row["Modell"] for row in report.losses()], ["A"])
-
     def test_completion_row_counts_copied_words(self):
         report = self.report()
-        report.add_texts("B", [" number 5 tells a short story"])
+        self.add(report, "B")
 
-        row = report.completions()[0]
+        rows = report.completions()
 
-        copied = longest_copied_span(" number 5 tells a short story", self.data.train)
-        self.assertEqual(row["Text"], PROMPT + " number 5 tells a short story")
-        self.assertEqual(row["Kopiert (Wörter)"], len(copied.split()))
-        self.assertEqual(row["Längste kopierte Folge"], copied)
+        self.assertEqual([row["Modell"] for row in rows], ["B", "B"])
+        for row in rows:
+            # Kopiert zählt nur die Fortsetzung, nicht den Prompt
+            continuation = str(row["Text"]).removeprefix(PROMPT)
+            copied = longest_copied_span(continuation, self.data.train)
+            self.assertEqual(row["Längste kopierte Folge"], copied)
+            self.assertEqual(row["Kopiert (Wörter)"], len(copied.split()))

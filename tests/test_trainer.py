@@ -17,7 +17,6 @@ CONFIG = TrainConfig(
     weight_decay=0.1,
     batch_size=4,
     eval_every=5,
-    eval_batches=None,
     grad_clip=1.0,
     precision="fp32",
     compile_backend=None,
@@ -74,7 +73,6 @@ class TrainerTest(TrainerCase):
             CPU,
             epochs=1,
             eval_every=5,
-            eval_batches=None,
             grad_clip=1.0,
             precision="fp32",
             checkpoint_path=None,
@@ -98,7 +96,7 @@ class TrainerTest(TrainerCase):
 
         self.assertTrue((self.env.checkpoint_dir / "best.pth").exists())
         self.assertAlmostEqual(
-            evaluate(model, self.data.loader("val", 4), CPU, None),
+            evaluate(model, self.data.loader("val", 4), CPU),
             result.best_val_loss,
             places=5,
         )
