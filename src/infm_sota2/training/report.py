@@ -5,7 +5,7 @@ import math
 import torch
 from torch import nn
 
-from infm_sota2.data.splits import TextSplits
+from infm_sota2.data import TextSplits
 from infm_sota2.training.analysis import longest_copied_span
 from infm_sota2.training.generate import complete
 from infm_sota2.training.loop import evaluate

@@ -1,11 +1,22 @@
-"""Bereinigt ein aus einem Buch umgewandeltes Textfile für das Training.
+"""Text für das Training: Buchtext bereinigen und teilen, Token-Fenster und
+Loader, dazu das Mini-Buch für Smoke-Läufe.
 
-Die Regeln und ihre Begründung stehen in old/docs/lotr-training.md.
+Die Regeln der Bereinigung und ihre Begründung stehen in
+old/docs/lotr-training.md. Das Mini-Buch ist selbst geschrieben, bei allen gleich
+und frei von Urheberrechten. So läuft der Smoke-Lauf auch bei Personen, die den
+Buchtext nicht haben. ``python -m infm_sota2 mini-book <ordner>`` schreibt es.
 """
 
+import argparse
 import re
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+import tiktoken
+import torch
+from torch.utils.data import DataLoader, Dataset, DistributedSampler
 
 # Kapitelname in Großbuchstaben plus Seitenzahl, wie OCR sie liest (I statt 1 usw.)
 _ODD_PAGE_HEADER = re.compile(r"([A-Z][A-Z ,'\-]+) [0-9IOQSlZ]{1,5}")
@@ -163,3 +174,148 @@ def _cut_after_paragraph(text: str, position: int) -> int:
     if boundary == -1:
         raise ValueError(f"No paragraph boundary after character {position}")
     return boundary + 2
+
+
+class BPEDataset(Dataset):
+    """Sliding Window Dataset mit BPE Tokenization."""
+
+    def __init__(
+        self,
+        text: str,
+        seq_len: int = 128,
+        stride: int | None = None,
+        encoding: str = "gpt2",
+    ):
+        if seq_len <= 0:
+            raise ValueError(f"seq_len must be positive, got {seq_len}")
+        if stride is not None and stride <= 0:
+            raise ValueError(f"stride must be positive, got {stride}")
+
+        self.tokenizer = tiktoken.get_encoding(encoding)
+        self.tokens = torch.tensor(self.tokenizer.encode(text), dtype=torch.long)
+        if len(self.tokens) < seq_len + 1:
+            raise ValueError(
+                f"Text must contain at least {seq_len + 1} tokens, "
+                f"got {len(self.tokens)}"
+            )
+
+        self.seq_len = seq_len
+        self.stride = seq_len if stride is None else stride
+        self.n_samples = (len(self.tokens) - seq_len - 1) // self.stride + 1
+
+    def __len__(self):
+        return self.n_samples
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        start = idx * self.stride
+        seq = self.tokens[start : start + self.seq_len + 1]
+        return seq[:-1], seq[1:]
+
+
+Split = Literal["train", "val", "test"]
+
+
+@dataclass(frozen=True)
+class TextSplits:
+    train: str
+    val: str
+    test: str
+    datasets: dict[Split, BPEDataset]
+
+    @classmethod
+    def from_book(
+        cls,
+        data_dir: Path,
+        file: str,
+        start_line: str,
+        end_line: str,
+        book_title: str,
+        train_ratio: float,
+        val_ratio: float,
+        max_chars: dict[str, int] | None,
+        seq_len: int,
+    ) -> "TextSplits":
+        """Liest ``data_dir / file``, bereinigt den Erzählteil und teilt ihn an
+        Absatzgrenzen. ``max_chars`` kürzt jeden Teil (nur für den Smoke-Test)."""
+        raw_text = (data_dir / file).read_text(encoding="utf-8")
+        text, _ = clean_book_text(
+            raw_text, start_line=start_line, end_line=end_line, book_title=book_title
+        )
+        train, val, test = split_text(text, train_ratio, val_ratio)
+        if max_chars is not None:
+            train = train[: max_chars["train"]]
+            val = val[: max_chars["val"]]
+            test = test[: max_chars["test"]]
+        datasets: dict[Split, BPEDataset] = {
+            "train": BPEDataset(train, seq_len=seq_len, stride=seq_len),
+            "val": BPEDataset(val, seq_len=seq_len, stride=seq_len),
+            "test": BPEDataset(test, seq_len=seq_len, stride=seq_len),
+        }
+        return cls(train=train, val=val, test=test, datasets=datasets)
+
+    @property
+    def tokenizer(self) -> tiktoken.Encoding:
+        return self.datasets["train"].tokenizer
+
+    def train_loader(
+        self, batch_size: int, seed: int, rank: int, world_size: int
+    ) -> DataLoader:
+        """Train-Loader für Rang ``rank`` von ``world_size``, ``batch_size`` Fenster
+        pro Prozess. Braucht keine Prozessgruppe, ohne torchrun ist es Rang 0 von 1.
+
+        Der Sampler mischt alle Fenster mit ``seed + epoch`` und gibt Rang r die
+        Fenster r, r + p, r + 2p usw. Bei gleicher Gesamt-Batchgröße B enthält
+        Schritt k deshalb bei jeder Zahl p der Prozesse die Fenster k·B bis
+        (k+1)·B − 1 der gemischten Reihenfolge. Vor jeder Epoche muss
+        ``sampler.set_epoch(epoch)`` laufen, sonst bleibt die Reihenfolge gleich.
+        """
+        sampler = DistributedSampler(
+            self.datasets["train"],
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=True,
+            seed=seed,
+            drop_last=True,
+        )
+        return DataLoader(
+            self.datasets["train"],
+            batch_size=batch_size,
+            sampler=sampler,
+            drop_last=True,
+        )
+
+    def loader(self, split: Literal["val", "test"], batch_size: int) -> DataLoader:
+        return DataLoader(self.datasets[split], batch_size=batch_size)
+
+
+# Marker und Titel, wie TextSplits.from_book sie aus der Konfiguration bekommt
+MINI_BOOK = {
+    "file": "mini-book.txt",
+    "start_line": "PROLOGUE",
+    "end_line": "APPENDIX A",
+    "book_title": "THE BOOK OF TESTS",
+}
+
+
+def write_mini_book(directory: Path) -> str:
+    """Legt ein Mini-Buch mit Vorspann, Erzählteil und Anhang an.
+
+    Gibt den Dateinamen zurück."""
+    paragraphs = [
+        f"Sentence number {i} tells a short story about tests." for i in range(200)
+    ]
+    lines = ["CONTENTS", "", "PROLOGUE", "", "\n\n".join(paragraphs), "", "APPENDIX A"]
+    (directory / MINI_BOOK["file"]).write_text("\n".join(lines), encoding="utf-8")
+    return MINI_BOOK["file"]
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="python -m infm_sota2 mini-book",
+        description="Mini-Buch in einen Ordner schreiben",
+    )
+    parser.add_argument("directory", type=Path)
+    args = parser.parse_args(argv)
+    args.directory.mkdir(parents=True, exist_ok=True)
+    name = write_mini_book(args.directory)
+    print(f"Mini-Buch: {args.directory / name}")
