@@ -10,7 +10,8 @@
 #SBATCH --output=logs/%x-%j.out
 
 # Smoke-Lauf und Läufe Nr. 2, 3 und 5 bis 8. Abschicken aus dem eigenen Klon, die
-# Knotenzahl beim Abschicken. Alles hinter dem Skript geht an cluster.train:
+# Knotenzahl beim Abschicken. Alles hinter dem Skript geht an
+# python -m infm_sota2 train:
 #   sbatch slurm/train.sbatch --config configs/smoke.toml
 #   sbatch --nodes=2 slurm/train.sbatch --config configs/lotr-small-main.toml
 set -euo pipefail
@@ -28,4 +29,4 @@ srun --kill-on-bad-exit=1 torchrun \
   --rdzv-id="$SLURM_JOB_ID" \
   --rdzv-backend=c10d \
   --rdzv-endpoint="$MASTER_ADDR:$MASTER_PORT" \
-  -m infm_sota2.cluster.train "$@"
+  -m infm_sota2 train "$@"

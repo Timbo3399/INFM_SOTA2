@@ -44,9 +44,9 @@ class MiniBookTest(TestCase):
         self.assertIs(tests.helpers.write_mini_book, write_mini_book)
 
     def test_module_call_runs_without_warning(self):
-        # So ruft slurm/setup.sh das Mini-Buch auf. Importiert das Paket das Modul
-        # vorher schon, warnt Python bei jedem Aufruf mit einer RuntimeWarning.
-        command = [sys.executable, "-W", "error", "-m", "infm_sota2.data.mini_book"]
+        # So ruft slurm/setup.sh das Mini-Buch auf. Jede Warnung beim Start bricht
+        # hier mit einem Fehler ab.
+        command = [sys.executable, "-W", "error", "-m", "infm_sota2", "mini-book"]
 
         result = subprocess.run(
             [*command, str(self.dir / "neu")], capture_output=True, text=True

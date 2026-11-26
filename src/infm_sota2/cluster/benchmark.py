@@ -7,7 +7,7 @@
 Speicherfehler. Das ergibt die Obergrenze für die Suche nach Batchgröße und
 Lernrate.
 
-Aufruf: ``python -m infm_sota2.cluster.benchmark [--smoke]``, auf dem Cluster
+Aufruf: ``python -m infm_sota2 benchmark [--smoke]``, auf dem Cluster
 über ``slurm/check.sbatch``.
 """
 
@@ -138,7 +138,8 @@ def _run_variants(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Lauf Nr. 1: Varianten aus Woche 5 und größte Batchgröße"
+        prog="python -m infm_sota2 benchmark",
+        description="Lauf Nr. 1: Varianten aus Woche 5 und größte Batchgröße",
     )
     parser.add_argument(
         "--smoke",

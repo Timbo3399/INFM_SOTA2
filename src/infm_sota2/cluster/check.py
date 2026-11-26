@@ -5,7 +5,7 @@ C-Compiler, Internet, tiktoken-Cache und den Datenordner aus. Unter ``torchrun``
 mit mehreren Prozessen meldet sich jeder Rang, und ein ``all_reduce`` über alle
 Ränge zeigt, dass die Knoten miteinander rechnen können.
 
-Aufruf: ``python -m infm_sota2.cluster.check [--no-internet]``, auf dem Cluster
+Aufruf: ``python -m infm_sota2 check [--no-internet]``, auf dem Cluster
 über ``slurm/check.sbatch``.
 """
 
@@ -138,7 +138,9 @@ def _tiktoken_cache() -> str | None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Umgebung prüfen (Job 1)")
+    parser = argparse.ArgumentParser(
+        prog="python -m infm_sota2 check", description="Umgebung prüfen (Job 1)"
+    )
     parser.add_argument(
         "--no-internet", action="store_true", help="Internet nicht prüfen"
     )

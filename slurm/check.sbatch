@@ -30,9 +30,9 @@ srun --kill-on-bad-exit=1 torchrun \
   --rdzv-id="$SLURM_JOB_ID" \
   --rdzv-backend=c10d \
   --rdzv-endpoint="$MASTER_ADDR:$MASTER_PORT" \
-  -m infm_sota2.cluster.check
+  -m infm_sota2 check
 
 # Der Benchmark misst eine einzelne GPU, bei mehreren Knoten fällt er weg
 if ((SLURM_NNODES == 1)); then
-  srun --kill-on-bad-exit=1 python -m infm_sota2.cluster.benchmark
+  srun --kill-on-bad-exit=1 python -m infm_sota2 benchmark
 fi

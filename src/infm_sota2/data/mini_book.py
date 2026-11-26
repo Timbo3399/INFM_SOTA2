@@ -4,7 +4,7 @@ Es hat denselben Aufbau wie ein umgewandeltes Buch (Vorspann, Erzählteil, Anhan
 ist bei allen gleich und frei von Urheberrechten. So läuft der Smoke-Lauf auch bei
 Personen, die den Buchtext nicht haben.
 
-Aufruf: ``python -m infm_sota2.data.mini_book <ordner>``
+Aufruf: ``python -m infm_sota2 mini-book <ordner>``
 """
 
 import argparse
@@ -32,7 +32,10 @@ def write_mini_book(directory: Path) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Mini-Buch in einen Ordner schreiben")
+    parser = argparse.ArgumentParser(
+        prog="python -m infm_sota2 mini-book",
+        description="Mini-Buch in einen Ordner schreiben",
+    )
     parser.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
     args.directory.mkdir(parents=True, exist_ok=True)

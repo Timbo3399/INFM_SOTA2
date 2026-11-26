@@ -7,7 +7,7 @@ und Ergebnissen nach ``results/week06/<benutzer>/<gruppe>/``.
 Unter ``torchrun`` mit mehreren Prozessen trainieren alle Ränge mit DDP. Nur
 Rang 0 misst danach, erzeugt die Texte und schreibt die Datei.
 
-Aufruf: ``python -m infm_sota2.cluster.train --config configs/smoke-cpu.toml``, auf
+Aufruf: ``python -m infm_sota2 train --config configs/smoke-cpu.toml``, auf
 dem Cluster über ``slurm/train.sbatch``. Die Suche wählt mit ``--grid-index`` eine
 Kombination aus Lernrate und Batchgröße.
 """
@@ -355,7 +355,8 @@ def _report_entry(report: ModelReport, name: str) -> dict[str, object]:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Ein Trainingslauf nach einer TOML-Datei aus configs/"
+        prog="python -m infm_sota2 train",
+        description="Ein Trainingslauf nach einer TOML-Datei aus configs/",
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument(

@@ -29,15 +29,15 @@ needs_bash = unittest.skipIf(
 PERSONAL = re.compile(r"/home/|(?<![$\[])@|\bof_[a-z]")
 
 # Nachgebautes uv: protokolliert jeden Aufruf und schreibt beim Aufruf des
-# Mini-Buchs das echte Mini-Buch. Die Datei läuft direkt, ohne das Paket und
-# damit ohne torch zu importieren. Sonst lädt und installiert es nichts.
+# Mini-Buchs mit dem echten Paket das Mini-Buch. Sonst lädt und installiert es
+# nichts.
 FAKE_UV = """#!/bin/bash
 echo "UV_NO_DEV=${UV_NO_DEV:-} $*" >> "$CALL_LOG"
 case "$1" in
   --version) echo "uv ${FAKE_UV_VERSION:-0.13.9} (fake)" ;;
   run)
-    if [[ "$*" == "run python -m infm_sota2.data.mini_book "* ]]; then
-      exec "$TEST_PYTHON" "$MINI_BOOK_FILE" "${@:5}"
+    if [[ "$*" == "run python -m infm_sota2 mini-book "* ]]; then
+      exec "$TEST_PYTHON" -m infm_sota2 mini-book "${@:6}"
     fi ;;
 esac
 """
@@ -104,6 +104,16 @@ class ScriptFilesTest(unittest.TestCase):
                 if line.lstrip().startswith("srun "):
                     with self.subTest(job=job.name, line=line):
                         self.assertIn("--kill-on-bad-exit=1", line)
+
+    def test_setup_download_command_imports(self):
+        # Den Befehl für die GPT-2-Gewichte kopiert man aus der Ausgabe von
+        # setup.sh und führt ihn auf dem Login-Knoten aus
+        setup = (SLURM / "setup.sh").read_text(encoding="utf-8")
+        line = next(line for line in setup.splitlines() if "download_weights(" in line)
+        start = line.index("from infm_sota2")
+        statement = line[start : line.index(";", start)]
+
+        exec(statement, {})
 
     def test_setup_creates_logs_folder(self):
         setup = (SLURM / "setup.sh").read_text(encoding="utf-8")
@@ -199,7 +209,6 @@ class SetupTest(unittest.TestCase):
             "HOME": str(self.home),
             "CALL_LOG": str(self.calls),
             "TEST_PYTHON": sys.executable,
-            "MINI_BOOK_FILE": str(ROOT / "src/infm_sota2/data/mini_book.py"),
         }
 
     def tearDown(self):
@@ -217,7 +226,7 @@ class SetupTest(unittest.TestCase):
         self.assertTrue((self.clone / "logs").is_dir())
         calls = self.calls.read_text("utf-8")
         self.assertIn("UV_NO_DEV=1 sync --no-dev --locked", calls)
-        self.assertIn("run python -m infm_sota2.data.mini_book data\n", calls)
+        self.assertIn("run python -m infm_sota2 mini-book data\n", calls)
         self.assertIn("scp", result.stdout)
         self.assertIn("download_weights", result.stdout)
         self.assertIn("export WANDB_MODE=disabled", result.stdout)
