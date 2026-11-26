@@ -14,7 +14,6 @@ import torch
 from infm_sota2.cluster.config import RunConfig, load_config, with_grid
 from infm_sota2.cluster.train import run
 from infm_sota2.model import GPTModel
-from infm_sota2.training import Trainer
 from tests.helpers import TINY_CONFIG, local_env, write_mini_book
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -68,6 +67,35 @@ class TrainRunTest(TestCase):
         self.assertEqual(record["label"], "smoke-cpu-gpus1")
         self.assertRegex(record["environment"]["git_commit"], r"^[0-9a-f]{40}$")
 
+    def test_record_keeps_its_keys(self):
+        # Das Notebook von Woche 6 liest diese Schlüssel aus jeder Datei
+        self.env.data_dir.mkdir()
+        write_mini_book(self.env.data_dir)
+
+        record = self.run_quietly(step2_config(SMOKE_CPU))
+
+        keys = {
+            "user",
+            "label",
+            "group",
+            "config",
+            "environment",
+            "result",
+            "mfu",
+            "test_loss",
+            "perplexity",
+            "texts",
+            "copied",
+            "pretrained",
+            "peak_memory_gb",
+            "fit_seconds",
+            "error",
+        }
+        self.assertEqual(set(record), keys)
+        self.assertLessEqual(
+            {"world_size", "gpu", "git_commit"}, set(record["environment"])
+        )
+
     def test_missing_book_names_path_and_hint(self):
         with self.assertRaises(FileNotFoundError) as caught:
             self.run_quietly(step2_config(SMOKE_CPU))
@@ -94,7 +122,7 @@ class TrainRunTest(TestCase):
         nan = FloatingPointError("loss is nan at step 3")
 
         with (
-            mock.patch.object(Trainer, "fit", side_effect=nan),
+            mock.patch("infm_sota2.cluster.train.fit", side_effect=nan),
             self.assertRaises(FloatingPointError),
         ):
             self.run_quietly(step2_config(SMOKE_CPU))
@@ -147,7 +175,7 @@ class TrainRunTest(TestCase):
         oom = torch.OutOfMemoryError("CUDA out of memory (simuliert)")
 
         with (
-            mock.patch.object(Trainer, "fit", side_effect=oom),
+            mock.patch("infm_sota2.cluster.train.fit", side_effect=oom),
             self.assertRaises(torch.OutOfMemoryError),
         ):
             self.run_quietly(SMOKE_CPU)

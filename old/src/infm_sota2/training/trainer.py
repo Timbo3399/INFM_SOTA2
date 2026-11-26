@@ -31,6 +31,7 @@ class TrainConfig:
     weight_decay: float
     batch_size: int  # über alle Prozesse zusammen
     eval_every: int
+    eval_batches: int | None
     grad_clip: float
     precision: TrainPrecision
     compile_backend: str | None  # None: nicht kompilieren
@@ -142,6 +143,7 @@ class Trainer:
             env.device,
             epochs=epochs,
             eval_every=config.eval_every,
+            eval_batches=config.eval_batches,
             grad_clip=config.grad_clip,
             precision=config.precision,
             checkpoint_path=checkpoint_path,

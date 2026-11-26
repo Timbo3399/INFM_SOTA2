@@ -1,7 +1,7 @@
 """Smoke-Lauf und Läufe Nr. 2 bis 8: ein Trainingslauf nach einer TOML-Datei.
 
 Liest die Konfiguration, baut Daten und Modell, misst auf Wunsch GPT-2 original,
-trainiert mit ``Trainer.fit`` und schreibt eine JSON-Datei mit allen Einstellungen
+trainiert mit ``fit`` und schreibt eine JSON-Datei mit allen Einstellungen
 und Ergebnissen nach ``results/week06/<benutzer>/<gruppe>/``.
 
 Unter ``torchrun`` mit mehreren Prozessen trainieren alle Ränge mit DDP. Nur
@@ -17,17 +17,20 @@ import getpass
 import math
 import os
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
+import wandb
 from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 
 from infm_sota2.benchmark import flops_per_token, peak_tflops
 from infm_sota2.cluster.check import collect_info
 from infm_sota2.cluster.config import (
     RunConfig,
+    TrainSettings,
     config_dict,
     load_config,
     run_label,
@@ -36,7 +39,7 @@ from infm_sota2.cluster.config import (
 from infm_sota2.cluster.distributed import destroy_distributed, init_distributed
 from infm_sota2.cluster.results import git_commit, result_path, write_result
 from infm_sota2.data import TextSplits
-from infm_sota2.env import Environment
+from infm_sota2.env import WANDB_ENTITY, WANDB_PROJECT, Environment
 from infm_sota2.model import (
     GPT2_SMALL_CONFIG,
     GPT2_SMALL_WEIGHTS_SHA256,
@@ -47,7 +50,7 @@ from infm_sota2.model import (
     download_weights,
     load_pretrained,
 )
-from infm_sota2.training import ModelReport, TrainConfig, Trainer
+from infm_sota2.training import ModelReport, TrainResult, load_checkpoint, train
 
 MODEL_CLASSES = {"GPTModel": GPTModel, "GPTModelV2": GPTModelV2}
 PRETRAINED = "GPT-2 original"
@@ -120,31 +123,19 @@ def run(
         model = build_model(
             MODEL_CLASSES[config.model_class], config.model, config.seed, env.device
         )
-        trainer = Trainer(
-            env, wandb_config=config_dict(config) | {"user": user, "job_id": job_id}
-        )
-        train_config = TrainConfig(
-            weight_decay=config.train.weight_decay,
-            batch_size=config.train.batch_size,
-            eval_every=config.train.eval_every,
-            grad_clip=config.train.grad_clip,
-            precision=config.train.precision,
-            compile_backend=config.train.compile_backend,
-            fused_adamw=config.train.fused_adamw,
-            seed=config.seed,
-        )
         if env.device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(env.device)
         start = time.perf_counter()
-        result = trainer.fit(
+        result = fit(
+            env,
             model,
             data,
-            train_config,
-            learning_rate=config.train.learning_rate,
-            epochs=config.train.epochs,
+            config.train,
+            config.seed,
             name=f"{label}-{user}",
             group=config.group,
             checkpoint_name=f"{label}.pth" if config.save_checkpoint else None,
+            wandb_config=config_dict(config) | {"user": user, "job_id": job_id},
         )
         if not main_process:
             return {}
@@ -176,6 +167,127 @@ def run(
     write_result(path, record)
     print(f"Ergebnis: {path}")
     return record
+
+
+def fit(
+    env: Environment,
+    model: nn.Module,
+    data: TextSplits,
+    settings: TrainSettings,
+    seed: int,
+    name: str,
+    group: str,
+    checkpoint_name: str | None,
+    wandb_config: dict[str, object],
+) -> TrainResult:
+    """Trainiert ``model`` mit AdamW nach ``settings`` und loggt nach W&B.
+
+    Jeder Prozess nimmt die Fenster seines Rangs aus ``data.train_loader``, ohne
+    ``torchrun`` ist das Rang 0 von 1. So sieht jede Zahl der Prozesse dieselben
+    Batches. Ab zwei Prozessen trainiert DDP, und nur Rang 0 loggt, gibt aus und
+    schreibt den Checkpoint. Tokens und Tokens/s gelten für alle Prozesse.
+
+    Mit ``checkpoint_name`` steht danach der beste Stand im Modell und in
+    ``env.checkpoint_dir``. ``wandb_config`` geht in den W&B-Run, damit
+    nachvollziehbar ist, womit er lief.
+    """
+    if settings.batch_size % env.world_size != 0:
+        raise ValueError(
+            f"batch_size {settings.batch_size} is not divisible by "
+            f"world_size {env.world_size}"
+        )
+    if settings.fused_adamw and env.device.type != "cuda":
+        raise ValueError(f"fused AdamW needs CUDA, got device {env.device}")
+    local_batch_size = settings.batch_size // env.world_size
+    train_loader = data.train_loader(local_batch_size, seed, env.rank, env.world_size)
+
+    # Wie PyTorch es empfiehlt: erst DDP, dann compile. Ein einzelner Prozess
+    # läuft ohne DDP, er ist die Basis für den Speedup.
+    step_model = model
+    if env.world_size > 1:
+        device_ids = [env.device.index] if env.device.type == "cuda" else None
+        # Die Masken von GPTModel sind konstant, also nichts zu verteilen
+        step_model = DistributedDataParallel(
+            model, device_ids=device_ids, broadcast_buffers=False
+        )
+    if settings.compile_backend is not None:
+        # Auf ein Modul angewendet liefert torch.compile wieder ein Modul
+        step_model = cast(
+            nn.Module, torch.compile(step_model, backend=settings.compile_backend)
+        )
+    # fused=None ist der Default von AdamW
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=settings.learning_rate,
+        weight_decay=settings.weight_decay,
+        fused=True if settings.fused_adamw else None,
+    )
+
+    main_process = env.rank == 0
+    wandb_run = wandb.init(
+        entity=WANDB_ENTITY,
+        project=WANDB_PROJECT,
+        group=group,
+        name=name,
+        mode=env.wandb_mode if main_process else "disabled",
+        config={
+            **wandb_config,
+            "world_size": env.world_size,
+            "batch_size_per_process": local_batch_size,
+        },
+    )
+    checkpoint_path = (
+        env.checkpoint_dir / checkpoint_name
+        if checkpoint_name is not None and main_process
+        else None
+    )
+
+    def log(metrics: dict[str, float], step: int) -> None:
+        # Jeder Prozess zählt nur seine eigenen Tokens
+        scaled = {
+            **metrics,
+            "tokens_seen": metrics["tokens_seen"] * env.world_size,
+            "throughput/tokens_per_second": metrics["throughput/tokens_per_second"]
+            * env.world_size,
+        }
+        wandb_run.log(scaled, step=step)
+
+    result = train(
+        step_model,
+        optimizer,
+        train_loader,
+        data.loader("val", settings.batch_size),
+        env.device,
+        epochs=settings.epochs,
+        eval_every=settings.eval_every,
+        grad_clip=settings.grad_clip,
+        precision=settings.precision,
+        checkpoint_path=checkpoint_path,
+        checkpoint_metadata={"name": name, "learning_rate": settings.learning_rate},
+        log=log,
+        eval_model=model,
+    )
+    result = replace(
+        result,
+        tokens_seen=result.tokens_seen * env.world_size,
+        tokens_per_second=(
+            None
+            if result.tokens_per_second is None
+            else result.tokens_per_second * env.world_size
+        ),
+    )
+    wandb_run.summary["best_val_loss"] = result.best_val_loss
+    wandb_run.summary["best_step"] = result.best_step
+    wandb_run.finish()
+    if main_process:
+        print(
+            f"{name}: bester Validierungs-Loss {result.best_val_loss:.3f} "
+            f"bei Schritt {result.best_step} von {result.steps}"
+        )
+    if checkpoint_path is not None:
+        load_checkpoint(checkpoint_path, model)
+        print("Checkpoint:", checkpoint_path)
+    return result
 
 
 def _empty_record(

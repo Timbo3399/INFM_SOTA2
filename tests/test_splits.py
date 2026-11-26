@@ -55,9 +55,9 @@ class TextSplitsTest(MiniBookCase):
     def test_same_seed_gives_same_train_order(self):
         data = self.splits()
 
-        first, _ = next(iter(data.train_loader(4, seed=1)))
-        again, _ = next(iter(data.train_loader(4, seed=1)))
-        other, _ = next(iter(data.train_loader(4, seed=2)))
+        first, _ = next(iter(data.train_loader(4, seed=1, rank=0, world_size=1)))
+        again, _ = next(iter(data.train_loader(4, seed=1, rank=0, world_size=1)))
+        other, _ = next(iter(data.train_loader(4, seed=2, rank=0, world_size=1)))
 
         self.assertTrue(torch.equal(first, again))
         self.assertFalse(torch.equal(first, other))
@@ -70,22 +70,6 @@ class TextSplitsTest(MiniBookCase):
         dataset = data.datasets["val"]
         expected = torch.stack([dataset[i][0] for i in range(4)])
         self.assertTrue(torch.equal(inputs, expected))
-
-    def test_summary_lists_cleaning_counts(self):
-        data = self.splits()
-
-        self.assertIn(
-            f"Absätze:                       {data.stats.paragraphs:,}", data.summary()
-        )
-
-    def test_split_summary_names_steps_per_epoch(self):
-        data = self.splits()
-
-        self.assertTrue(
-            data.split_summary(4).endswith(
-                f"Schritte pro Epoche: {len(data.train_loader(4, seed=1))}"
-            )
-        )
 
 
 def step_rows(loaders: list) -> list[list[tuple[int, ...]]]:
@@ -103,12 +87,7 @@ class DistributedTrainLoaderTest(MiniBookCase):
         # Fenster, so rechnen 1, 2 und 4 Knoten in Lauf Nr. 5 dieselbe Arbeit
         data = self.splits()
         by_world_size = {
-            p: step_rows(
-                [
-                    data.distributed_train_loader(8 // p, 123, rank, p)
-                    for rank in range(p)
-                ]
-            )
+            p: step_rows([data.train_loader(8 // p, 123, rank, p) for rank in range(p)])
             for p in (1, 2, 4)
         }
 
@@ -118,7 +97,7 @@ class DistributedTrainLoaderTest(MiniBookCase):
 
     def test_set_epoch_changes_order(self):
         # Ohne set_epoch sähe jede Epoche dieselbe Reihenfolge
-        loader = self.splits().distributed_train_loader(4, 123, 0, 1)
+        loader = self.splits().train_loader(4, 123, 0, 1)
         first_epoch, _ = next(iter(loader))
 
         loader.sampler.set_epoch(1)  # type: ignore[attr-defined]

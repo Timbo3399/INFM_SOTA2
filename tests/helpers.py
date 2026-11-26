@@ -47,14 +47,10 @@ def pattern_loader(n_windows: int, batch_size: int) -> DataLoader:
 def local_env(base_dir: Path) -> Environment:
     """Auf der CPU, ohne W&B, alle Ordner unter ``base_dir``."""
     return Environment(
-        in_colab=False,
         base_dir=base_dir,
-        run_dir=base_dir / "checkpoints" / "runs",
         device=torch.device("cpu"),
         wandb_mode="disabled",
         data_dir=base_dir / "data",
         rank=0,
-        local_rank=0,
         world_size=1,
-        launched_by_torchrun=False,
     )

@@ -28,3 +28,7 @@ Zurück geht es mit `git switch -`.
 | `src/infm_sota2/training/loop.py` | alter Stand, in dem `evaluate` mit `max_batches` und `train` mit `eval_batches` nur einen Teil der Validierung prüfen konnten. Woche 6 prüft immer den ganzen Teil. |
 | `src/infm_sota2/training/report.py` | alter Stand mit `ModelReport.add_texts` für die Texte von Claude und `losses` für die Tabelle im LOTR-Notebook |
 | `tests/test_training.py`, `test_report.py` | alter Stand mit den Tests dafür |
+| `src/infm_sota2/env.py` | alter Stand mit dem Teil für Colab (Google Drive, schnelle Platte `run_dir`, W&B-Login mit Colab-Secret, Versionsvergleich) und den Feldern `local_rank` und `launched_by_torchrun` |
+| `src/infm_sota2/data/splits.py` | alter Stand mit dem Train-Loader ohne `DistributedSampler` und mit `summary` und `split_summary` für das LOTR-Notebook |
+| `src/infm_sota2/training/trainer.py` | `Trainer` und `TrainConfig`. Heute macht `fit` dasselbe und nimmt die Werte direkt aus der TOML-Datei. |
+| `tests/test_env.py`, `test_splits.py`, `test_trainer.py` | alter Stand mit den Tests dafür |

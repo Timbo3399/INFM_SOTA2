@@ -8,25 +8,30 @@ from unittest import TestCase, mock
 
 import torch
 
+from infm_sota2.cluster.config import TrainSettings
+from infm_sota2.cluster.train import fit
 from infm_sota2.data import TextSplits
-from infm_sota2.training import TrainConfig, Trainer, evaluate, train
+from infm_sota2.env import Environment
+from infm_sota2.training import TrainResult, evaluate, train
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
 CPU = torch.device("cpu")
-CONFIG = TrainConfig(
-    weight_decay=0.1,
+SEED = 1
+SETTINGS = TrainSettings(
     batch_size=4,
-    eval_every=5,
+    learning_rate=1e-2,
+    epochs=1,
+    weight_decay=0.1,
     grad_clip=1.0,
+    eval_every=5,
     precision="fp32",
     compile_backend=None,
     fused_adamw=False,
-    seed=1,
 )
 
 
-class TrainerCase(TestCase):
-    """Mini-Buch, Daten und Trainer, ohne eigene Tests."""
+class FitCase(TestCase):
+    """Mini-Buch und Daten, ohne eigene Tests."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -43,32 +48,38 @@ class TrainerCase(TestCase):
             max_chars=max_chars,
             seq_len=8,
         )
-        self.trainer = Trainer(self.env, wandb_config={"test": True})
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def fit(self, model, checkpoint_name):
+    def fit(
+        self,
+        model: torch.nn.Module,
+        checkpoint_name: str | None,
+        env: Environment | None = None,
+        settings: TrainSettings = SETTINGS,
+    ) -> TrainResult:
         with redirect_stdout(io.StringIO()):
-            return self.trainer.fit(
+            return fit(
+                self.env if env is None else env,
                 model,
                 self.data,
-                CONFIG,
-                learning_rate=1e-2,
-                epochs=1,
+                settings,
+                SEED,
                 name="test-run",
                 group="tests",
                 checkpoint_name=checkpoint_name,
+                wandb_config={"test": True},
             )
 
 
-class TrainerTest(TrainerCase):
+class FitTest(FitCase):
     def test_fit_gives_same_result_as_train(self):
         model = tiny_model(seed=1, vocab_size=50257)
         direct = train(
             model,
             torch.optim.AdamW(model.parameters(), lr=1e-2, weight_decay=0.1),
-            self.data.train_loader(4, seed=1),
+            self.data.train_loader(4, seed=1, rank=0, world_size=1),
             self.data.loader("val", 4),
             CPU,
             epochs=1,
@@ -95,6 +106,8 @@ class TrainerTest(TrainerCase):
         result = self.fit(model, checkpoint_name="best.pth")
 
         self.assertTrue((self.env.checkpoint_dir / "best.pth").exists())
+        # Direkt an den bleibenden Ort, ohne Umweg über einen zweiten Ordner
+        self.assertFalse((self.env.checkpoint_dir / "runs").exists())
         self.assertAlmostEqual(
             evaluate(model, self.data.loader("val", 4), CPU),
             result.best_val_loss,
@@ -108,52 +121,39 @@ class TrainerTest(TrainerCase):
         self.assertEqual(written, [])
 
 
-class TrainerOptionsTest(TrainerCase):
-    """Batchgröße, DDP-Loader, compile und fused AdamW, auf der CPU."""
+class FitOptionsTest(FitCase):
+    """Loader, Batchgröße, compile und fused AdamW, auf der CPU."""
 
-    def fit_with(self, env, config: TrainConfig):
-        trainer = Trainer(env, wandb_config={"test": True})
-        with redirect_stdout(io.StringIO()):
-            return trainer.fit(
-                tiny_model(seed=1, vocab_size=50257),
-                self.data,
-                config,
-                learning_rate=1e-2,
-                epochs=1,
-                name="test",
-                group="tests",
-                checkpoint_name=None,
-            )
-
-    def test_fit_under_torchrun_uses_distributed_loader(self):
-        env = replace(self.env, launched_by_torchrun=True)
-        original = TextSplits.distributed_train_loader
+    def test_fit_uses_train_loader_of_its_rank(self):
+        original = TextSplits.train_loader
 
         with mock.patch.object(
-            TextSplits, "distributed_train_loader", autospec=True, side_effect=original
+            TextSplits, "train_loader", autospec=True, side_effect=original
         ) as loader:
-            self.fit_with(env, CONFIG)
+            self.fit(tiny_model(seed=1, vocab_size=50257), checkpoint_name=None)
 
         # Batch 4 pro Prozess, Seed 1, Rang 0 von 1
         loader.assert_called_once_with(self.data, 4, 1, 0, 1)
 
     def test_batch_size_must_divide_world_size(self):
-        env = replace(self.env, world_size=3, launched_by_torchrun=True)
+        env = replace(self.env, world_size=3)
 
         with (
-            mock.patch("infm_sota2.training.trainer.train") as train_spy,
+            mock.patch("infm_sota2.cluster.train.train") as train_spy,
             self.assertRaisesRegex(ValueError, "world_size"),
         ):
-            self.fit_with(env, CONFIG)
+            self.fit(tiny_model(seed=1, vocab_size=50257), None, env=env)
         train_spy.assert_not_called()
 
     def test_fused_adamw_needs_cuda(self):
+        settings = replace(SETTINGS, fused_adamw=True)
+
         with self.assertRaisesRegex(ValueError, "CUDA"):
-            self.fit_with(self.env, replace(CONFIG, fused_adamw=True))
+            self.fit(tiny_model(seed=1, vocab_size=50257), None, settings=settings)
 
     def test_compile_and_bf16_on_cpu(self):
-        config = replace(CONFIG, precision="bf16-mixed", compile_backend="eager")
+        settings = replace(SETTINGS, precision="bf16-mixed", compile_backend="eager")
 
-        result = self.fit_with(self.env, config)
+        result = self.fit(tiny_model(seed=1, vocab_size=50257), None, settings=settings)
 
         self.assertTrue(math.isfinite(result.best_val_loss))
