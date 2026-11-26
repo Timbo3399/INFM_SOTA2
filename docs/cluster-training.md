@@ -43,7 +43,7 @@ Nicht dabei:
 - FSDP, Tensor- und Pipeline-Parallelismus. Laut Folie 35 kommt das in diesem Kurs nicht vor.
 - TF32, ein auf 50.304 aufgefülltes Vokabular und der KV-Cache (Begründung unter „Ansätze“).
 - Weak Scaling und mehrere Seeds pro Einstellung.
-- Colab. Dort bindet jede Person ihr eigenes Drive ein und legt den Ordner an wie in `docs/lotr-training.md` beschrieben. Daran ändert Woche 6 nichts.
+- Colab. Dort bindet jede Person ihr eigenes Drive ein und legt den Ordner an wie in `old/docs/lotr-training.md` beschrieben. Daran ändert Woche 6 nichts.
 - Die Notebooks der anderen und `workbook_timo_attention_v2.ipynb`.
 
 Als Fehlschlag gilt, auch wenn alles läuft:

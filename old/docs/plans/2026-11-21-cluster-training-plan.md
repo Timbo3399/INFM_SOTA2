@@ -8,7 +8,7 @@
 
 **Technik:** Python 3.13 (Syntax bis 3.12), torch 2.14.1, tiktoken 0.14.0, wandb 0.28.1, `tomllib`, unittest, Bash, Slurm.
 
-**Spezifikation:** [`docs/cluster-training.md`](../cluster-training.md)
+**Spezifikation:** [`docs/cluster-training.md`](../../../docs/cluster-training.md)
 
 ## Globale Vorgaben
 

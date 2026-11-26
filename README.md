@@ -20,7 +20,7 @@ Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyT
 | `configs/` | Eine TOML-Datei pro Lauf auf dem Cluster. Jede Einstellung eines Laufs steht dort. |
 | `results/` | Ergebnisse der Läufe als JSON, `results/week06/<benutzer>/<gruppe>/<lauf>-job<id>.json`. |
 | `scripts/` | Hilfsskripte, z. B. `smoke_notebook.py` für den Notebook-Smoke-Test. |
-| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](docs/lotr-training.md), [Woche 5: Attention V2](docs/attention-v2.md), [Woche 6: Pre-Training auf dem Cluster](docs/cluster-training.md) und [Auf dem Cluster DACHS](docs/dachs.md). |
+| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](old/docs/lotr-training.md), [Woche 5: Attention V2](old/docs/attention-v2.md), [Woche 6: Pre-Training auf dem Cluster](docs/cluster-training.md) und [Auf dem Cluster DACHS](docs/dachs.md). |
 | `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
 | `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
 | `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |

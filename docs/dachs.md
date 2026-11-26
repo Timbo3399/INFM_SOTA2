@@ -88,7 +88,7 @@ Die letzte Zeile sagt, wofür die Einrichtung reicht: „bereit für den Smoke-L
 
 ### Buchtext
 
-Der Text von *The Lord of the Rings* ist urheberrechtlich geschützt. Wer mit dem Buch trainiert, legt die eigene Kopie als `data/The-lord-of-the-rings.txt` in den eigenen Klon. Es ist dieselbe Datei wie in Woche 4 ([Anleitung](lotr-training.md)). `data/` steht in der `.gitignore`, die Datei kommt nie ins Repo.
+Der Text von *The Lord of the Rings* ist urheberrechtlich geschützt. Wer mit dem Buch trainiert, legt die eigene Kopie als `data/The-lord-of-the-rings.txt` in den eigenen Klon. Es ist dieselbe Datei wie in Woche 4 ([Anleitung](../old/docs/lotr-training.md)). `data/` steht in der `.gitignore`, die Datei kommt nie ins Repo.
 
 Hochladen geht per Ziehen in VS Code oder aus der PowerShell, im Ordner mit der Datei:
 

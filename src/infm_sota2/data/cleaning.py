@@ -1,6 +1,6 @@
 """Bereinigt ein aus einem Buch umgewandeltes Textfile für das Training.
 
-Die Regeln und ihre Begründung stehen in docs/lotr-training.md.
+Die Regeln und ihre Begründung stehen in old/docs/lotr-training.md.
 """
 
 import re

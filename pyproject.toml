@@ -14,13 +14,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    # Nur für Notebooks (Hugging-Face-Datensätze in workbook_marvin_training_v1)
-    "datasets>=5.1.0",
+    # Nur für das Notebook und die Checks, nicht für die Läufe
     "ipykernel",
-    "ipywidgets",
     "matplotlib",
     "pandas",
-    "requests",
     "ruff==0.17.2",
     "pyright==1.1.414",
     "coverage==7.17.0",

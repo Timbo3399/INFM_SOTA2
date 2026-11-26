@@ -4,18 +4,14 @@ from unittest import TestCase
 import nbformat
 
 NOTEBOOK_DIR = Path(__file__).parent.parent / "notebooks"
-TIMO_NOTEBOOKS = [
-    "workbook_timo_lotr.ipynb",
-    "workbook_timo_attention_v2.ipynb",
-    "workbook_timo_cluster.ipynb",
-]
+NOTEBOOKS = ["workbook_timo_cluster.ipynb"]
 
 
 class NotebookTest(TestCase):
-    def test_timo_notebooks_install_from_main(self):
+    def test_notebooks_install_from_main(self):
         # Feature-Branches werden nach dem Merge gelöscht, dann scheitert in Colab
         # das `%pip install` aus dem Branch
-        for name in TIMO_NOTEBOOKS:
+        for name in NOTEBOOKS:
             with self.subTest(notebook=name):
                 notebook = nbformat.read(NOTEBOOK_DIR / name, as_version=4)
                 branch_lines = [
