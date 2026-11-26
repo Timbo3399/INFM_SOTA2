@@ -33,25 +33,34 @@ class CleaningStats:
 
 
 def clean_book_text(
-    text: str, start_line: str, end_line: str, book_title: str
+    text: str,
+    start_line: str | None = None,
+    end_line: str | None = None,
+    book_title: str | None = None,
 ) -> tuple[str, CleaningStats]:
     """Schneidet den Erzählteil aus und macht daraus Absätze ohne Seitenkopfzeilen.
 
     Erzählteil: von der Zeile ``start_line`` (inklusive) bis ``end_line`` (exklusive).
+    Fehlende Marker verwenden den Dateianfang bzw. das Dateiende. Ohne
+    Buchtitel entfällt nur die titelspezifische Kopfzeilenerkennung.
     Ergebnis: Absätze, getrennt durch eine Leerzeile.
     """
     lines = [line.strip() for line in text.split("\n")]
-    start = _index_of_unique_line(lines, start_line)
-    end = _index_of_unique_line(lines, end_line)
+    start = 0 if start_line is None else _index_of_unique_line(lines, start_line)
+    end = len(lines) if end_line is None else _index_of_unique_line(lines, end_line)
     if start >= end:
         raise ValueError(f"{start_line!r} must come before {end_line!r}")
     narrative = lines[start:end]
 
-    even_page_header = re.compile(r"\S{1,6} " + re.escape(book_title))
+    even_page_header = (
+        re.compile(r"\S{1,6} " + re.escape(book_title))
+        if book_title is not None
+        else None
+    )
     header_titles: Counter[str] = Counter()
 
     def header_title(line: str) -> str | None:
-        if even_page_header.fullmatch(line):
+        if even_page_header is not None and even_page_header.fullmatch(line):
             return book_title
         if match := _ODD_PAGE_HEADER.fullmatch(line):
             return match.group(1)

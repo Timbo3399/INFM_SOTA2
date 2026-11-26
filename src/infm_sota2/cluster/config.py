@@ -1,6 +1,6 @@
 """Einstellungen eines Laufs aus einer TOML-Datei in ``configs/``.
 
-Jede Einstellung steht in der Datei, es gibt keine Defaults. Fehlende und
+Pflichteinstellungen stehen in der Datei. Fehlende und
 unbekannte Schlüssel, falsche Typen und unbekannte Werte brechen mit dem Namen des
 Schlüssels ab. Für die Suche wählt ``with_grid`` die Kombination aus Lernrate und
 Batchgröße zum Index des Job-Arrays.
@@ -20,13 +20,13 @@ MODEL_CLASSES = ("GPTModel", "GPTModelV2")
 @dataclass(frozen=True)
 class DataSettings:
     file: str
-    start_line: str
-    end_line: str
-    book_title: str
     train_ratio: float
     val_ratio: float
     seq_len: int
-    max_chars: dict[str, int] | None  # optionale Tabelle [data.max_chars]
+    start_line: str | None = None
+    end_line: str | None = None
+    book_title: str | None = None
+    max_chars: dict[str, int] | None = None  # optionale Tabelle [data.max_chars]
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,13 @@ def load_config(path: Path) -> RunConfig:
     with path.open("rb") as file:
         raw = tomllib.load(file)
     top = _table(raw, "", _TOP, optional={"search"})
-    data = _table(top["data"], "data.", _DATA, optional={"max_chars"})
+    # TOML has no null: omit optional keys to use their None defaults.
+    data = _table(
+        top["data"],
+        "data.",
+        _DATA,
+        optional={"start_line", "end_line", "book_title", "max_chars"},
+    )
     max_chars = data.pop("max_chars", None)
     if max_chars is not None:
         max_chars = _table(max_chars, "data.max_chars.", _MAX_CHARS)
