@@ -4,13 +4,12 @@ Liest die Konfiguration, baut Daten und Modell, misst auf Wunsch GPT-2 original,
 trainiert mit ``Trainer.fit`` und schreibt eine JSON-Datei mit allen Einstellungen
 und Ergebnissen nach ``results/week06/<benutzer>/<gruppe>/``.
 
+Unter ``torchrun`` mit mehreren Prozessen trainieren alle Ränge mit DDP. Nur
+Rang 0 misst danach, erzeugt die Texte und schreibt die Datei.
+
 Aufruf: ``python -m infm_sota2.cluster.train --config configs/smoke-cpu.toml``, auf
 dem Cluster über ``slurm/train.sbatch``. Die Suche wählt mit ``--grid-index`` eine
 Kombination aus Lernrate und Batchgröße.
-
-Fassung für Schritt 2: Das Training kann nur, was der heutige ``Trainer`` kann,
-also ein Prozess, ``fp32`` oder ``fp16-mixed``, ohne ``compile`` und ohne fused
-AdamW. Alles andere bricht ab, bis der Umbau aus Schritt 3 fertig ist.
 """
 
 import argparse
@@ -23,7 +22,9 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from torch import nn
 
+from infm_sota2.benchmark import flops_per_token, peak_tflops
 from infm_sota2.cluster.check import collect_info
 from infm_sota2.cluster.config import (
     RunConfig,
@@ -32,6 +33,7 @@ from infm_sota2.cluster.config import (
     run_label,
     with_grid,
 )
+from infm_sota2.cluster.distributed import destroy_distributed, init_distributed
 from infm_sota2.cluster.results import git_commit, result_path, write_result
 from infm_sota2.data import TextSplits
 from infm_sota2.env import Environment
@@ -64,12 +66,14 @@ def run(
 ) -> dict[str, object]:
     """Ein Lauf von den Daten bis zur JSON-Datei, gibt den Datensatz zurück.
 
-    Bei ``FloatingPointError`` (Loss NaN) und ``torch.OutOfMemoryError`` landet
-    der Lauf mit dem Fehler und ohne Loss in der Datei, danach geht der Fehler
-    weiter. So bleibt ein gescheiterter Lauf in der Auswertung sichtbar.
+    Auf Rang 0 ist das der geschriebene Datensatz, die anderen Ränge trainieren
+    nur mit und geben ``{}`` zurück. Bei ``FloatingPointError`` (Loss NaN) und
+    ``torch.OutOfMemoryError`` landet der Lauf mit dem Fehler und ohne Loss in der
+    Datei, danach geht der Fehler weiter. So bleibt ein gescheiterter Lauf in der
+    Auswertung sichtbar.
     """
-    world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    use_amp = _step2_use_amp(config, env, world_size)
+    if config.train.precision == "fp16-mixed" and env.device.type != "cuda":
+        raise ValueError("fp16-mixed needs CUDA (GradScaler)")
     book = env.data_dir / config.data.file
     if not book.is_file():
         raise FileNotFoundError(
@@ -80,11 +84,12 @@ def run(
     seq_len = data_fields.pop("seq_len")
     data = TextSplits.from_book(env.data_dir, seq_len=seq_len, **data_fields)
 
-    label = run_label(config, world_size)
+    label = run_label(config, env.world_size)
+    main_process = env.rank == 0
     context_length = config.model["context_length"]
     assert isinstance(context_length, int)  # load_config hat den Typ geprüft
     report = None
-    if config.report or config.evaluate_pretrained:
+    if main_process and (config.report or config.evaluate_pretrained):
         report = ModelReport(
             data,
             env.device,
@@ -92,32 +97,12 @@ def run(
             seed=config.seed,
             **asdict(config.generation),
         )
-    record: dict[str, Any] = {
-        "user": user,
-        "label": label,
-        "group": config.group,
-        "config": config_dict(config),
-        "environment": collect_info(env, check_internet=False)
-        | {
-            "job_id": job_id,
-            "nodelist": os.environ.get("SLURM_JOB_NODELIST"),
-            "world_size": world_size,
-            "git_commit": git_commit(repo_dir),
-        },
-        "result": None,
-        "test_loss": None,
-        "perplexity": None,
-        "texts": None,
-        "copied": None,
-        "pretrained": None,
-        "peak_memory_gb": None,
-        "fit_seconds": None,
-        "error": None,
-    }
+    record: dict[str, Any] = {}
+    if main_process:
+        record = _empty_record(config, env, user, label, job_id, repo_dir)
     path = result_path(env.base_dir, user, config.group, label, job_id)
     try:
-        if config.evaluate_pretrained:
-            assert report is not None
+        if config.evaluate_pretrained and report is not None:
             weights = download_weights(
                 GPT2_SMALL_WEIGHTS_URL,
                 GPT2_SMALL_WEIGHTS_SHA256,
@@ -144,7 +129,9 @@ def run(
             eval_every=config.train.eval_every,
             eval_batches=None,  # ganzer Validierungsteil wie in Woche 4
             grad_clip=config.train.grad_clip,
-            use_amp=use_amp,
+            precision=config.train.precision,
+            compile_backend=config.train.compile_backend,
+            fused_adamw=config.train.fused_adamw,
             seed=config.seed,
         )
         if env.device.type == "cuda":
@@ -160,8 +147,11 @@ def run(
             group=config.group,
             checkpoint_name=f"{label}.pth" if config.save_checkpoint else None,
         )
+        if not main_process:
+            return {}
         record["fit_seconds"] = time.perf_counter() - start
         record["result"] = asdict(result)
+        record["mfu"] = _mfu(model, config, env, result.tokens_per_second)
         if env.device.type == "cuda":
             peak = torch.cuda.max_memory_allocated(env.device) / 1024**3
             record["peak_memory_gb"] = peak
@@ -170,39 +160,74 @@ def run(
             report.add(label, model, context_length)
             record |= _report_entry(report, label)
     except (FloatingPointError, torch.OutOfMemoryError) as error:
-        record |= {
-            "error": f"{type(error).__name__}: {error}",
-            "result": None,
-            "test_loss": None,
-            "perplexity": None,
-            "texts": None,
-            "copied": None,
-            "fit_seconds": None,
-        }
-        write_result(path, record)
-        print(f"Fehler, Ergebnis mit Fehler: {path}")
+        if main_process:
+            record |= {
+                "error": f"{type(error).__name__}: {error}",
+                "result": None,
+                "mfu": None,
+                "test_loss": None,
+                "perplexity": None,
+                "texts": None,
+                "copied": None,
+                "fit_seconds": None,
+            }
+            write_result(path, record)
+            print(f"Fehler, Ergebnis mit Fehler: {path}")
         raise
     write_result(path, record)
     print(f"Ergebnis: {path}")
     return record
 
 
-def _step2_use_amp(config: RunConfig, env: Environment, world_size: int) -> bool:
-    """Übersetzt ``precision`` für den heutigen Trainer (``use_amp``)."""
-    later = []
-    if config.train.precision == "bf16-mixed":
-        later.append("precision bf16-mixed")
-    if config.train.compile_backend is not None:
-        later.append(f"compile_backend {config.train.compile_backend!r}")
-    if config.train.fused_adamw:
-        later.append("fused_adamw")
-    if world_size > 1:
-        later.append(f"WORLD_SIZE {world_size}")
-    if later:
-        raise ValueError(f"{', '.join(later)}: kommt mit Schritt 3 (Umbau nach Weg A)")
-    if config.train.precision == "fp16-mixed" and env.device.type != "cuda":
-        raise ValueError("fp16-mixed needs CUDA (GradScaler)")
-    return config.train.precision == "fp16-mixed"
+def _empty_record(
+    config: RunConfig,
+    env: Environment,
+    user: str,
+    label: str,
+    job_id: str | None,
+    repo_dir: Path,
+) -> dict[str, Any]:
+    """Der Datensatz vor dem Training: Einstellungen und Umgebung, noch ohne Loss."""
+    return {
+        "user": user,
+        "label": label,
+        "group": config.group,
+        "config": config_dict(config),
+        "environment": collect_info(env, check_internet=False)
+        | {
+            "job_id": job_id,
+            "nodelist": os.environ.get("SLURM_JOB_NODELIST"),
+            "world_size": env.world_size,
+            "git_commit": git_commit(repo_dir),
+        },
+        "result": None,
+        "mfu": None,
+        "test_loss": None,
+        "perplexity": None,
+        "texts": None,
+        "copied": None,
+        "pretrained": None,
+        "peak_memory_gb": None,
+        "fit_seconds": None,
+        "error": None,
+    }
+
+
+def _mfu(
+    model: nn.Module,
+    config: RunConfig,
+    env: Environment,
+    tokens_per_second: float | None,
+) -> float | None:
+    """Anteil der Spitzenleistung pro GPU wie in Woche 5, ``None`` ohne bekannte GPU.
+
+    ``tokens_per_second`` gilt für alle Prozesse zusammen, alle auf derselben GPU.
+    """
+    peak = peak_tflops(env.gpu_name, config.train.precision)
+    if peak is None or tokens_per_second is None:
+        return None
+    flops = flops_per_token(model, config.model, config.data.seq_len)
+    return tokens_per_second * flops / (env.world_size * peak * 1e12)
 
 
 def _report_entry(report: ModelReport, name: str) -> dict[str, object]:
@@ -232,7 +257,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.grid_index is not None:
         config = with_grid(config, args.grid_index)
     env = Environment.detect(smoke_test=False)
-    run(config, env, getpass.getuser(), os.environ.get("SLURM_JOB_ID"), REPO_DIR)
+    init_distributed(env)
+    try:
+        run(config, env, getpass.getuser(), os.environ.get("SLURM_JOB_ID"), REPO_DIR)
+    finally:
+        destroy_distributed(env)
 
 
 if __name__ == "__main__":

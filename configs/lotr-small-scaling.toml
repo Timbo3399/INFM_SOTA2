@@ -1,0 +1,50 @@
+# Lauf Nr. 5: Skalierung auf 1, 2 und 4 Knoten mit derselben Gesamt-Batchgröße 32,
+# pro GPU also 32, 16 und 8. Ergibt Speedup und Effizienz (Folie 5). Fast gleicher
+# Loss bei allen Knotenzahlen prüft DDP. Ohne Checkpoint und ohne Test-Loss.
+#   sbatch --nodes=1 slurm/train.sbatch --config configs/lotr-small-scaling.toml
+#   sbatch --nodes=2 slurm/train.sbatch --config configs/lotr-small-scaling.toml
+#   sbatch --nodes=4 slurm/train.sbatch --config configs/lotr-small-scaling.toml
+
+name = "lotr-small-scaling"
+group = "week6-scaling"
+seed = 123
+model_class = "GPTModelV2"
+evaluate_pretrained = false
+save_checkpoint = false
+report = false
+
+[data]
+file = "The-lord-of-the-rings.txt"
+start_line = "PROLOGUE"
+end_line = "APPENDIX A"
+book_title = "THE LORD OF THE RINGS"
+train_ratio = 0.8
+val_ratio = 0.1
+seq_len = 256
+
+[model]  # GPT-2 Small mit 256 Tokens Kontext wie in Woche 4
+vocab_size = 50257
+context_length = 256
+emb_dim = 768
+n_heads = 12
+n_layers = 12
+drop_rate = 0.1
+qkv_bias = true
+
+[train]
+batch_size = 32  # fest: über alle GPUs zusammen, teilbar durch 1, 2 und 4
+learning_rate = 4e-4  # nach der Suche eintragen: beste Lernrate für Batch 32
+epochs = 2
+weight_decay = 0.1
+grad_clip = 1.0
+eval_every = 10
+precision = "bf16-mixed"
+compile_backend = "inductor"
+fused_adamw = true
+
+[generation]
+prompt = "The Elves are"
+samples = 3
+max_new_tokens = 40
+temperature = 0.8
+top_k = 40

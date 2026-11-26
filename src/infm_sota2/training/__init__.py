@@ -1,6 +1,7 @@
 from infm_sota2.training.analysis import longest_copied_span
 from infm_sota2.training.generate import complete, generate
 from infm_sota2.training.loop import (
+    TrainPrecision,
     TrainResult,
     batch_loss,
     evaluate,
@@ -14,6 +15,7 @@ from infm_sota2.training.trainer import TrainConfig, Trainer
 __all__ = [
     "ModelReport",
     "TrainConfig",
+    "TrainPrecision",
     "TrainResult",
     "Trainer",
     "batch_loss",

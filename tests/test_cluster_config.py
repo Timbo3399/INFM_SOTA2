@@ -9,6 +9,7 @@ from infm_sota2.cluster.config import (
     run_label,
     with_grid,
 )
+from infm_sota2.model import GPT2_LARGE_CONFIG, GPT2_MEDIUM_CONFIG
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"
 SMOKE_CPU = (CONFIGS / "smoke-cpu.toml").read_text(encoding="utf-8")
@@ -55,6 +56,15 @@ class LoadConfigTest(ConfigTestCase):
         for path in paths:
             with self.subTest(config=path.name):
                 load_config(path)
+
+    def test_model_configs_match_constants(self):
+        for file, expected in {
+            "lotr-medium.toml": GPT2_MEDIUM_CONFIG,
+            "lotr-large.toml": GPT2_LARGE_CONFIG,
+        }.items():
+            with self.subTest(config=file):
+                model = load_config(CONFIGS / file).model
+                self.assertEqual(model, {**expected, "context_length": 256})
 
     def test_missing_key_is_named(self):
         with self.assertRaisesRegex(ValueError, "epochs"):

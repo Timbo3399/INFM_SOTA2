@@ -4,7 +4,11 @@ from unittest import TestCase
 import nbformat
 
 NOTEBOOK_DIR = Path(__file__).parent.parent / "notebooks"
-TIMO_NOTEBOOKS = ["workbook_timo_lotr.ipynb", "workbook_timo_attention_v2.ipynb"]
+TIMO_NOTEBOOKS = [
+    "workbook_timo_lotr.ipynb",
+    "workbook_timo_attention_v2.ipynb",
+    "workbook_timo_cluster.ipynb",
+]
 
 
 class NotebookTest(TestCase):

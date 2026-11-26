@@ -23,6 +23,7 @@ from torch.cuda import nccl
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from infm_sota2.benchmark import has_bf16
+from infm_sota2.cluster.distributed import destroy_distributed, init_distributed
 from infm_sota2.env import Environment
 
 # Eingaben im Datenordner, siehe docs/dachs.md
@@ -144,42 +145,34 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     check_internet = not args.no_internet
 
-    world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    if world_size == 1:
-        env = Environment.detect(smoke_test=False)
+    env = Environment.detect(smoke_test=False)
+    if env.world_size == 1:
         print(format_info(collect_info(env, check_internet)), flush=True)
         return
 
     # Unter torchrun mit mehreren Prozessen: eine GPU pro Prozess
-    rank = int(os.environ["RANK"])
-    local_rank = int(os.environ["LOCAL_RANK"])
-    if torch.cuda.is_available():
-        torch.cuda.set_device(local_rank)
-    env = Environment.detect(smoke_test=False)
-    on_gpu = env.device.type == "cuda"
-    dist.init_process_group("nccl" if on_gpu else "gloo")
+    init_distributed(env)
     try:
         host, gpu = socket.gethostname(), env.gpu_name or "keine GPU"
-        print(f"Rang {rank} von {world_size}: {host}, {gpu}", flush=True)
-        if rank == 0:
+        print(f"Rang {env.rank} von {env.world_size}: {host}, {gpu}", flush=True)
+        if env.rank == 0:
             print(format_info(collect_info(env, check_internet)), flush=True)
-        device = torch.device("cuda", local_rank) if on_gpu else torch.device("cpu")
-        total = torch.tensor([rank + 1], device=device)
+        total = torch.tensor([env.rank + 1], device=env.device)
         dist.all_reduce(total)  # Summe 1 + 2 + ... + world_size
-        expected = world_size * (world_size + 1) // 2
-        if rank == 0:
+        expected = env.world_size * (env.world_size + 1) // 2
+        if env.rank == 0:
             print(
-                f"all_reduce über {world_size} Prozesse: {int(total.item())} "
+                f"all_reduce über {env.world_size} Prozesse: {int(total.item())} "
                 f"(erwartet {expected})",
                 flush=True,
             )
         if int(total.item()) != expected:
             raise RuntimeError(
-                f"all_reduce over {world_size} processes gave {int(total.item())}, "
-                f"expected {expected}"
+                f"all_reduce over {env.world_size} processes gave "
+                f"{int(total.item())}, expected {expected}"
             )
     finally:
-        dist.destroy_process_group()
+        destroy_distributed(env)
 
 
 if __name__ == "__main__":

@@ -53,4 +53,8 @@ def local_env(base_dir: Path) -> Environment:
         device=torch.device("cpu"),
         wandb_mode="disabled",
         data_dir=base_dir / "data",
+        rank=0,
+        local_rank=0,
+        world_size=1,
+        launched_by_torchrun=False,
     )

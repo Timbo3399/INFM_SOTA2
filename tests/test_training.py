@@ -5,6 +5,7 @@ from unittest import TestCase
 
 import torch
 from torch import nn
+from torch.utils.data import DataLoader, DistributedSampler
 
 from infm_sota2.training import (
     batch_loss,
@@ -86,10 +87,11 @@ class TrainTest(TestCase):
             "eval_every": 2,
             "eval_batches": None,
             "grad_clip": 1.0,
-            "use_amp": False,
+            "precision": "fp32",
             "checkpoint_path": None,
             "checkpoint_metadata": {},
             "log": lambda metrics, step: self.logs.append((metrics, step)),
+            "eval_model": model,
         }
         return train(model, **{**args, **kwargs})
 
@@ -108,7 +110,14 @@ class TrainTest(TestCase):
         self.assertEqual([step for _, step in self.logs], [2, 4])
         for metrics, _ in self.logs:
             self.assertEqual(
-                set(metrics), {"train/loss", "val/loss", "epoch", "tokens_seen"}
+                set(metrics),
+                {
+                    "train/loss",
+                    "val/loss",
+                    "epoch",
+                    "tokens_seen",
+                    "throughput/tokens_per_second",
+                },
             )
         self.assertEqual(self.logs[-1][0]["tokens_seen"], 16 * 8)
         self.assertEqual(self.logs[-1][0]["epoch"], 1.0)
@@ -150,9 +159,68 @@ class TrainTest(TestCase):
         with self.assertRaisesRegex(FloatingPointError, "step 0"):
             self.run_train(NanModel())
 
-    def test_amp_requires_cuda(self):
+    def test_fp16_mixed_requires_cuda(self):
         with self.assertRaisesRegex(ValueError, "CUDA"):
-            self.run_train(tiny_model(seed=123), use_amp=True)
+            self.run_train(tiny_model(seed=123), precision="fp16-mixed")
+
+    def test_unknown_precision_is_an_error(self):
+        with self.assertRaisesRegex(ValueError, "bf16"):
+            self.run_train(tiny_model(seed=123), precision="bf16")
+
+    def test_bf16_mixed_trains_on_cpu(self):
+        model = tiny_model(seed=123)
+        before = evaluate(model, pattern_loader(4, 4), CPU, None)
+
+        result = self.run_train(model, epochs=3, precision="bf16-mixed")
+
+        self.assertLess(result.best_val_loss, before - 1.0)
+
+    def test_checkpoint_from_compiled_model_loads_into_plain_model(self):
+        model = tiny_model(seed=123)
+        compiled = torch.compile(model, backend="eager")
+
+        self.run_train(
+            compiled,
+            optimizer=torch.optim.AdamW(model.parameters(), lr=1e-2),
+            epochs=2,
+            checkpoint_path=self.checkpoint,
+            eval_model=model,
+        )
+
+        state = torch.load(self.checkpoint, weights_only=True)["model_state_dict"]
+        self.assertFalse([key for key in state if key.startswith("_orig_mod.")])
+        tiny_model(seed=999).load_state_dict(state)  # strikt
+
+    def test_distributed_sampler_gets_each_epoch(self):
+        epochs_seen = []
+
+        class RecordingSampler(DistributedSampler):
+            def set_epoch(self, epoch):
+                epochs_seen.append(epoch)
+                super().set_epoch(epoch)
+
+        dataset = pattern_loader(16, 4).dataset
+        sampler = RecordingSampler(dataset, num_replicas=1, rank=0, seed=1)
+        loader = DataLoader(dataset, batch_size=4, sampler=sampler, drop_last=True)
+
+        self.run_train(tiny_model(seed=123), train_loader=loader, epochs=3)
+
+        self.assertEqual(epochs_seen, [0, 1, 2])
+
+    def test_tokens_per_second_needs_two_intervals(self):
+        # Das erste Intervall zählt nicht, dort kompiliert torch.compile
+        only_end = self.run_train(tiny_model(seed=123), eval_every=100)
+        every_step = self.run_train(tiny_model(seed=123), eval_every=1)
+
+        self.assertIsNone(only_end.tokens_per_second)
+        assert every_step.tokens_per_second is not None
+        self.assertGreater(every_step.tokens_per_second, 0)
+
+    def test_val_losses_match_logged_losses(self):
+        result = self.run_train(tiny_model(seed=123), epochs=2)
+
+        logged = tuple((step, metrics["val/loss"]) for metrics, step in self.logs)
+        self.assertEqual(result.val_losses, logged)
 
 
 class CheckpointTest(TestCase):

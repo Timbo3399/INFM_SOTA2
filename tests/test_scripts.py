@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -84,6 +85,25 @@ class ScriptFilesTest(unittest.TestCase):
             with self.subTest(file=str(path.relative_to(ROOT))):
                 match = PERSONAL.search(path.read_text(encoding="utf-8"))
                 self.assertIsNone(match, match and match.group())
+
+    def test_search_array_matches_grid(self):
+        job = (SLURM / "search.sbatch").read_text(encoding="utf-8")
+        with (CONFIGS / "lotr-small-search.toml").open("rb") as file:
+            search = tomllib.load(file)["search"]
+
+        match = re.search(r"^#SBATCH --array=0-(\d+)%\d+$", job, re.MULTILINE)
+
+        assert match is not None, "keine Zeile #SBATCH --array=0-N%M"
+        size = len(search["learning_rates"]) * len(search["batch_sizes"])
+        self.assertEqual(int(match.group(1)), size - 1)
+
+    def test_jobs_stop_all_tasks_when_one_fails(self):
+        # Sonst warten die anderen Knoten im all_reduce bis zum NCCL-Timeout
+        for job in sorted(SLURM.glob("*.sbatch")):
+            for line in job.read_text(encoding="utf-8").splitlines():
+                if line.lstrip().startswith("srun "):
+                    with self.subTest(job=job.name, line=line):
+                        self.assertIn("--kill-on-bad-exit=1", line)
 
     def test_setup_creates_logs_folder(self):
         setup = (SLURM / "setup.sh").read_text(encoding="utf-8")
@@ -279,6 +299,13 @@ class JobScriptTest(unittest.TestCase):
         job = [str(SLURM / "train.sbatch"), "--config", "configs/smoke.toml"]
 
         result = run_bash(job, self.env, self.foreign)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Klon", result.stderr)
+        self.assertFalse(self.calls.exists(), "srun wurde aufgerufen")
+
+    def test_search_job_refuses_foreign_directory(self):
+        result = run_bash([str(SLURM / "search.sbatch")], self.env, self.foreign)
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Klon", result.stderr)

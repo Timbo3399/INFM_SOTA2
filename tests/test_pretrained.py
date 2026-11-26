@@ -3,7 +3,13 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase
 
-from infm_sota2.model import GPT2_SMALL_CONFIG, download_weights, sha256_of
+from infm_sota2.model import (
+    GPT2_LARGE_CONFIG,
+    GPT2_MEDIUM_CONFIG,
+    GPT2_SMALL_CONFIG,
+    download_weights,
+    sha256_of,
+)
 
 
 class Gpt2SmallConfigTest(TestCase):
@@ -33,6 +39,22 @@ class DownloadWeightsTest(TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_medium_and_large_differ_from_small_in_size_only(self):
+        # GPT-2 Medium und Large aus dem GPT-2-Paper (Tabelle 2)
+        sizes = {"medium": (GPT2_MEDIUM_CONFIG, 24, 1024, 16)}
+        sizes["large"] = (GPT2_LARGE_CONFIG, 36, 1280, 20)
+        for name, (config, n_layers, emb_dim, n_heads) in sizes.items():
+            with self.subTest(model=name):
+                self.assertEqual(
+                    config,
+                    {
+                        **GPT2_SMALL_CONFIG,
+                        "n_layers": n_layers,
+                        "emb_dim": emb_dim,
+                        "n_heads": n_heads,
+                    },
+                )
 
     def test_sha256_of_matches_hashlib(self):
         self.assertEqual(sha256_of(self.source), self.sha256)

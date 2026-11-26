@@ -9,11 +9,11 @@ Batchgröße zum Index des Job-Arrays.
 import tomllib
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 from infm_sota2.model import GPT2_SMALL_CONFIG
+from infm_sota2.training import TrainPrecision
 
-PRECISIONS = ("fp32", "fp16-mixed", "bf16-mixed")
 MODEL_CLASSES = ("GPTModel", "GPTModelV2")
 
 
@@ -37,7 +37,7 @@ class TrainSettings:
     weight_decay: float
     grad_clip: float
     eval_every: int
-    precision: str
+    precision: TrainPrecision
     compile_backend: str | None  # in TOML "none": nicht kompilieren
     fused_adamw: bool
 
@@ -134,7 +134,7 @@ def load_config(path: Path) -> RunConfig:
     generation = _table(top["generation"], "generation.", _GENERATION)
 
     _one_of("model_class", top["model_class"], MODEL_CLASSES)
-    _one_of("train.precision", train["precision"], PRECISIONS)
+    _one_of("train.precision", train["precision"], get_args(TrainPrecision))
     if train["compile_backend"] == "none":
         train["compile_backend"] = None
     if data["seq_len"] > model["context_length"]:
