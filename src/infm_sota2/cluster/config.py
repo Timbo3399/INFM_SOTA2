@@ -11,10 +11,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, get_args
 
-from infm_sota2.model import GPT2_SMALL_CONFIG
+from infm_sota2.model import GPT2_SMALL_CONFIG, MODEL_CLASSES
 from infm_sota2.training import TrainPrecision
-
-MODEL_CLASSES = ("GPTModel", "GPTModelV2")
 
 
 @dataclass(frozen=True)
@@ -133,7 +131,7 @@ def load_config(path: Path) -> RunConfig:
     train = _table(top["train"], "train.", _TRAIN)
     generation = _table(top["generation"], "generation.", _GENERATION)
 
-    _one_of("model_class", top["model_class"], MODEL_CLASSES)
+    _one_of("model_class", top["model_class"], tuple(MODEL_CLASSES))
     _one_of("train.precision", train["precision"], get_args(TrainPrecision))
     if train["compile_backend"] == "none":
         train["compile_backend"] = None

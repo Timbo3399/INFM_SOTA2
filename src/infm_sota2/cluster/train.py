@@ -44,15 +44,14 @@ from infm_sota2.model import (
     GPT2_SMALL_CONFIG,
     GPT2_SMALL_WEIGHTS_SHA256,
     GPT2_SMALL_WEIGHTS_URL,
+    MODEL_CLASSES,
     GPTModel,
-    GPTModelV2,
     build_model,
     download_weights,
     load_pretrained,
 )
 from infm_sota2.training import ModelReport, TrainResult, load_checkpoint, train
 
-MODEL_CLASSES = {"GPTModel": GPTModel, "GPTModelV2": GPTModelV2}
 PRETRAINED = "GPT-2 original"
 PRETRAINED_FILE = "gpt2-small-124M.pth"
 # Der Klon, aus dem dieser Code läuft (uv sync installiert das Paket editierbar).
