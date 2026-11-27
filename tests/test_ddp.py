@@ -16,11 +16,11 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from infm_sota2.config import TrainSettings, load_config
-from infm_sota2.train import fit, run
 from torch.multiprocessing.spawn import spawn
 
+from infm_sota2.config import TrainSettings, load_config
 from infm_sota2.data import TextSplits
+from infm_sota2.train import fit, run
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -140,4 +140,5 @@ class DistributedDataParallelTest(unittest.TestCase):
         self.assertEqual(writers, ["smoke0"])
         self.assertEqual(returned[1], {})
         self.assertEqual(returned[0]["environment"]["world_size"], 2)
+        self.assertEqual(returned[0]["label"], "smoke-cpu-gpus2")
         self.assertIsNone(returned[0]["error"])

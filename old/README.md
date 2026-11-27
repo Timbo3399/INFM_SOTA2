@@ -32,3 +32,4 @@ Zurück geht es mit `git switch -`.
 | `src/infm_sota2/data/splits.py` | alter Stand mit dem Train-Loader ohne `DistributedSampler` und mit `summary` und `split_summary` für das LOTR-Notebook |
 | `src/infm_sota2/training/trainer.py` | `Trainer` und `TrainConfig`. Heute macht `fit` dasselbe und nimmt die Werte direkt aus der TOML-Datei. |
 | `tests/test_env.py`, `test_splits.py`, `test_trainer.py` | alter Stand mit den Tests dafür |
+| `tests/test_cluster_config.py` | alter Stand mit dem Test für `run_label`. Das Label steht heute direkt in `train.py`, `test_ddp.py` prüft es für zwei Prozesse. |

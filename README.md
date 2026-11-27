@@ -49,7 +49,7 @@ uv run python -m infm_sota2 mini-book data
 uv run python -m infm_sota2 train --config configs/smoke-cpu.toml
 ```
 
-Das Ergebnis landet unter `results/week06/<benutzer>/week6-smoke/` und endet auf `-local.json`. Solche Dateien gehören nicht ins Repo.
+Das Ergebnis landet unter `results/week06/<benutzer>/week6-smoke/` und endet auf `-local.json`. Solche Dateien gehören nicht ins Repo. Eine vorhandene Ergebnisdatei wird nie überschrieben, vor einem zweiten Smoke-Lauf also die alte `-local.json` löschen. Sonst bricht er am Ende mit `FileExistsError` ab.
 
 Die echten Läufe starten auf dem Cluster mit `sbatch`, die Anleitung steht in [docs/dachs.md](docs/dachs.md). Ausgewertet werden sie in `notebooks/workbook_timo_cluster.ipynb`.
 

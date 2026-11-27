@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest import TestCase
 
 from infm_sota2.config import load_config, with_grid
-
 from infm_sota2.model import GPT2_LARGE_CONFIG, GPT2_MEDIUM_CONFIG
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"

@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 
 import torch
-from infm_sota2.check import collect_info, format_info
 
+from infm_sota2.check import collect_info, format_info
 from tests.helpers import local_env
 
 

@@ -10,13 +10,13 @@ from typing import Any
 from unittest import TestCase, mock
 
 import torch
-from infm_sota2.config import RunConfig, TrainSettings, load_config, with_grid
-from infm_sota2.train import fit, run
 
+from infm_sota2.config import RunConfig, TrainSettings, load_config, with_grid
 from infm_sota2.data import TextSplits
 from infm_sota2.env import Environment
 from infm_sota2.loop import TrainResult, evaluate, train
 from infm_sota2.model import GPTModel
+from infm_sota2.train import fit, run
 from tests.helpers import MINI_BOOK, TINY_CONFIG, local_env, tiny_model, write_mini_book
 
 ROOT = Path(__file__).resolve().parent.parent
