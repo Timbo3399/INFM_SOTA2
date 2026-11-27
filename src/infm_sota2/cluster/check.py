@@ -22,9 +22,12 @@ import torch.nn.functional as F
 from torch.cuda import nccl
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
-from infm_sota2.benchmark import has_bf16
-from infm_sota2.cluster.distributed import destroy_distributed, init_distributed
-from infm_sota2.env import Environment
+from infm_sota2.env import (
+    Environment,
+    destroy_distributed,
+    has_bf16,
+    init_distributed,
+)
 
 # Eingaben im Datenordner, siehe docs/dachs.md
 INPUT_FILES = ("mini-book.txt", "The-lord-of-the-rings.txt", "gpt2-small-124M.pth")

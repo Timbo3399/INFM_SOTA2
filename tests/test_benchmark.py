@@ -8,7 +8,6 @@ from infm_sota2.benchmark import (
     Benchmark,
     Variant,
     flops_per_token,
-    has_bf16,
     peak_tflops,
     slide20_variants,
 )
@@ -36,10 +35,6 @@ class FlopsTest(TestCase):
         self.assertEqual(
             flops_per_token(GPTModelV2(TINY_CONFIG), TINY_CONFIG, 8), TINY_FLOPS
         )
-
-    def test_cpu_has_bf16(self):
-        # autocast mit bfloat16 läuft auf der CPU, so lässt sich bf16 lokal testen
-        self.assertTrue(has_bf16(CPU))
 
     def test_peak_tflops_by_gpu_name(self):
         cases = [

@@ -1,8 +1,18 @@
 import os
+import tempfile
 from pathlib import Path
 from unittest import TestCase, mock
 
-from infm_sota2.env import Environment
+import torch
+import torch.distributed as dist
+
+from infm_sota2.env import (
+    Environment,
+    destroy_distributed,
+    has_bf16,
+    init_distributed,
+)
+from tests.helpers import local_env
 
 
 def clean_environment(test: TestCase) -> None:
@@ -86,3 +96,22 @@ class EnvironmentVariablesTest(TestCase):
 
         self.assertEqual(env.wandb_mode, "online")
         self.assertEqual(env.data_dir, Path.cwd() / "data")
+
+
+class HasBf16Test(TestCase):
+    def test_cpu_has_bf16(self):
+        # autocast mit bfloat16 läuft auf der CPU, so lässt sich bf16 lokal testen
+        self.assertTrue(has_bf16(torch.device("cpu")))
+
+
+class DistributedTest(TestCase):
+    def test_single_process_starts_no_process_group(self):
+        # Ein Prozess ist die Basis für den Speedup und läuft ohne DDP
+        with tempfile.TemporaryDirectory() as tmp:
+            env = local_env(Path(tmp))
+
+            init_distributed(env)
+            started = dist.is_initialized()
+            destroy_distributed(env)
+
+        self.assertFalse(started)

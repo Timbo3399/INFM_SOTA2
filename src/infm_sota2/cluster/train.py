@@ -36,10 +36,15 @@ from infm_sota2.cluster.config import (
     run_label,
     with_grid,
 )
-from infm_sota2.cluster.distributed import destroy_distributed, init_distributed
 from infm_sota2.cluster.results import git_commit, result_path, write_result
 from infm_sota2.data import TextSplits
-from infm_sota2.env import WANDB_ENTITY, WANDB_PROJECT, Environment
+from infm_sota2.env import (
+    WANDB_ENTITY,
+    WANDB_PROJECT,
+    Environment,
+    destroy_distributed,
+    init_distributed,
+)
 from infm_sota2.model import (
     GPT2_SMALL_CONFIG,
     GPT2_SMALL_WEIGHTS_SHA256,

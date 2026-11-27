@@ -1,4 +1,11 @@
-"""Laufzeitumgebung: Ordner, Gerät, Rang unter torchrun und W&B-Modus."""
+"""Laufzeitumgebung: Ordner, Gerät, Rang unter torchrun und W&B-Modus, dazu die
+Prozessgruppe für DDP.
+
+Ein einzelner Prozess läuft ohne Prozessgruppe und ohne DDP. Er ist die Basis für
+den Speedup in Lauf Nr. 5. Ab zwei Prozessen nimmt die Gruppe NCCL auf der GPU und
+Gloo auf der CPU, so lässt sich der Code lokal mit
+``torchrun --nproc-per-node=2`` testen.
+"""
 
 import os
 from dataclasses import dataclass
@@ -6,6 +13,7 @@ from pathlib import Path
 from typing import Literal, get_args
 
 import torch
+import torch.distributed as dist
 
 WANDB_ENTITY = "hochschule-offenburg"
 WANDB_PROJECT = "SOTA_2"
@@ -83,3 +91,25 @@ def _torchrun_ranks() -> tuple[int, int, int]:
         )
     rank, local_rank, world_size = (int(os.environ[n]) for n in _TORCHRUN_VARIABLES)
     return rank, local_rank, world_size
+
+
+def has_bf16(device: torch.device) -> bool:
+    """bf16 in Hardware: auf der CPU immer, auf der GPU ab Compute Capability 8.
+
+    Die T4 (7.5) emuliert bf16 nur über fp32, dort bleibt für 16 Bit fp16.
+    """
+    return device.type != "cuda" or torch.cuda.get_device_capability(device)[0] >= 8
+
+
+def init_distributed(env: Environment) -> None:
+    """Setzt die GPU des Prozesses und startet ab zwei Prozessen die Gruppe."""
+    if env.device.type == "cuda":
+        torch.cuda.set_device(env.device)
+    if env.world_size > 1:
+        backend = "nccl" if env.device.type == "cuda" else "gloo"
+        dist.init_process_group(backend, rank=env.rank, world_size=env.world_size)
+
+
+def destroy_distributed(env: Environment) -> None:
+    if env.world_size > 1:
+        dist.destroy_process_group()

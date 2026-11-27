@@ -54,14 +54,6 @@ class Variant:
     compile_backend: str | None
 
 
-def has_bf16(device: torch.device) -> bool:
-    """bf16 in Hardware: auf der CPU immer, auf der GPU ab Compute Capability 8.
-
-    Die T4 (7.5) emuliert bf16 nur über fp32, dort bleibt für 16 Bit fp16.
-    """
-    return device.type != "cuda" or torch.cuda.get_device_capability(device)[0] >= 8
-
-
 def slide20_variants(mixed: Precision, compile_backend: str) -> list[Variant]:
     """Die sechs Varianten von Folie 20, wie in ``workbook_timo_attention_v2.ipynb``.
 

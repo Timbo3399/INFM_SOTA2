@@ -25,12 +25,11 @@ from infm_sota2.benchmark import (
     BenchmarkResult,
     Precision,
     Variant,
-    has_bf16,
     slide20_variants,
 )
 from infm_sota2.cluster.check import collect_info
 from infm_sota2.cluster.results import result_path, write_result
-from infm_sota2.env import Environment
+from infm_sota2.env import Environment, has_bf16
 from infm_sota2.model import GPT2_SMALL_CONFIG
 
 SCAN_BATCH_SIZES = (8, 16, 32, 64, 128, 256, 512)
