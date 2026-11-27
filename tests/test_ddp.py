@@ -18,33 +18,30 @@ import torch
 import torch.distributed as dist
 from torch.multiprocessing.spawn import spawn
 
-from infm_sota2.cluster.config import load_config
-from infm_sota2.cluster.train import run
+from infm_sota2.config import TrainSettings, load_config
 from infm_sota2.data import TextSplits
-from infm_sota2.training import TrainConfig, Trainer
+from infm_sota2.train import fit, run
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
 ROOT = Path(__file__).resolve().parent.parent
 WORLD_SIZE = 2
-CONFIG = TrainConfig(
-    weight_decay=0.1,
+SETTINGS = TrainSettings(
     batch_size=8,  # über beide Prozesse zusammen
-    eval_every=5,
-    eval_batches=None,
+    learning_rate=1e-2,
+    epochs=1,
+    weight_decay=0.1,
     grad_clip=1.0,
+    eval_every=5,
     precision="fp32",
     compile_backend=None,
     fused_adamw=False,
-    seed=1,
 )
 
 
 def train_once(base: Path, data_dir: Path, rank: int, world_size: int) -> None:
     """Trainiert wie ein Prozess unter torchrun und speichert die Gewichte danach."""
     base.mkdir(parents=True, exist_ok=True)
-    env = replace(
-        local_env(base), rank=rank, world_size=world_size, launched_by_torchrun=True
-    )
+    env = replace(local_env(base), rank=rank, world_size=world_size)
     data = TextSplits.from_book(
         data_dir,
         **MINI_BOOK,
@@ -59,16 +56,7 @@ def train_once(base: Path, data_dir: Path, rank: int, world_size: int) -> None:
     # und das Rauschen hängt bei DDP von der Reihenfolge der Summen ab.
     model = tiny_model(seed=1, vocab_size=50257, qkv_bias=False)
     with redirect_stdout(io.StringIO()):
-        Trainer(env, wandb_config={"test": True}).fit(
-            model,
-            data,
-            CONFIG,
-            learning_rate=1e-2,
-            epochs=1,
-            name="ddp",
-            group="tests",
-            checkpoint_name="best.pth",
-        )
+        fit(env, model, data, SETTINGS, 1, "ddp", "tests", "best.pth", {"test": True})
     torch.save(model.state_dict(), base / "final.pt")
 
 
@@ -94,7 +82,6 @@ def smoke_run(base: Path, data_dir: Path, rank: int, world_size: int) -> None:
         data_dir=data_dir,
         rank=rank,
         world_size=world_size,
-        launched_by_torchrun=True,
     )
     # smoke-cpu.toml mit bf16, compile und Report, gekürzt auf eine kurze Epoche
     config = load_config(ROOT / "configs" / "smoke-cpu.toml")
@@ -153,4 +140,5 @@ class DistributedDataParallelTest(unittest.TestCase):
         self.assertEqual(writers, ["smoke0"])
         self.assertEqual(returned[1], {})
         self.assertEqual(returned[0]["environment"]["world_size"], 2)
+        self.assertEqual(returned[0]["label"], "smoke-cpu-gpus2")
         self.assertIsNone(returned[0]["error"])

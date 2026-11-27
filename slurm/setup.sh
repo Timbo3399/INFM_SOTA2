@@ -40,7 +40,7 @@ mkdir -p logs
 
 echo "== 4/5 Mini-Buch für den Smoke-Lauf"
 DATA_DIR=${SOTA2_DATA_DIR:-data}
-uv run python -m infm_sota2.data.mini_book "$DATA_DIR"
+uv run python -m infm_sota2 mini-book "$DATA_DIR"
 DATA_DIR=$(cd "$DATA_DIR" && pwd)  # absolut, für die Befehle unten
 
 echo "== 5/5 Prüfen"
@@ -59,7 +59,7 @@ if [[ -f "$DATA_DIR/gpt2-small-124M.pth" ]]; then
 else
   missing+=("GPT-2-Gewichte")
   echo "fehlt  GPT-2-Gewichte von OpenAI für Lauf Nr. 2. Hier auf dem Login-Knoten laden:"
-  echo "         uv run python -c \"from pathlib import Path; from infm_sota2.model.pretrained import GPT2_SMALL_WEIGHTS_SHA256, GPT2_SMALL_WEIGHTS_URL, download_weights; download_weights(GPT2_SMALL_WEIGHTS_URL, GPT2_SMALL_WEIGHTS_SHA256, Path('$DATA_DIR/gpt2-small-124M.pth'))\""
+  echo "         uv run python -c \"from pathlib import Path; from infm_sota2.model import GPT2_SMALL_WEIGHTS_SHA256, GPT2_SMALL_WEIGHTS_URL, download_weights; download_weights(GPT2_SMALL_WEIGHTS_URL, GPT2_SMALL_WEIGHTS_SHA256, Path('$DATA_DIR/gpt2-small-124M.pth'))\""
 fi
 
 wandb_ready=1

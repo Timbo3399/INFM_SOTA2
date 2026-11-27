@@ -1,7 +1,4 @@
-from infm_sota2.data import create_dataloader
-from infm_sota2.model import GPTModel
+"""LLM von Grund auf in PyTorch, Gruppenprojekt SOTA 2 an der HS Offenburg.
 
-__all__ = [
-    "create_dataloader",
-    "GPTModel",
-]
+Aufbau des Codes und die Befehle stehen in docs/code.md.
+"""

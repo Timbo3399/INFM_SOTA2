@@ -1,8 +1,7 @@
 # Smoke-Lauf auf der CPU: Mini-Buch und das winzige Modell aus dem Smoke-Test von
 # Woche 5, läuft in Sekunden. Prüft die Kette bis zur JSON-Datei, die Zahlen
 # haben keine Aussagekraft.
-#   uv run python -m infm_sota2.cluster.train --config configs/smoke-cpu.toml
-# bf16-mixed und compile kann das Training erst nach dem Umbau (Schritt 3).
+#   uv run python -m infm_sota2 train --config configs/smoke-cpu.toml
 
 name = "smoke-cpu"
 group = "week6-smoke"

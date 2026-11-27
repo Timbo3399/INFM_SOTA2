@@ -4,6 +4,8 @@ Woche 6, Aufgabe *Scaling Pre-Training*. Wir trainieren GPT-2 auf dem Cluster DA
 
 Stand: umgesetzt am 21.11.2026 auf `feature/cluster-setup` und `feature/cluster-training`. Die Läufe auf dem Cluster und ihre Ergebnisse folgen. Was beim Umsetzen anders kam, steht am Ende unter „Abweichungen bei der Umsetzung“.
 
+Seit dem Aufräumen am 26.11.2026 ist der Code anders aufgeteilt. Wo dieser Entwurf Module, Klassen und Befehle nennt, meint er den Stand davor. Den heutigen Aufbau zeigt [code.md](code.md).
+
 ## Aufgabe
 
 Folie 46:
@@ -43,7 +45,7 @@ Nicht dabei:
 - FSDP, Tensor- und Pipeline-Parallelismus. Laut Folie 35 kommt das in diesem Kurs nicht vor.
 - TF32, ein auf 50.304 aufgefülltes Vokabular und der KV-Cache (Begründung unter „Ansätze“).
 - Weak Scaling und mehrere Seeds pro Einstellung.
-- Colab. Dort bindet jede Person ihr eigenes Drive ein und legt den Ordner an wie in `docs/lotr-training.md` beschrieben. Daran ändert Woche 6 nichts.
+- Colab. Dort bindet jede Person ihr eigenes Drive ein und legt den Ordner an wie in `old/docs/lotr-training.md` beschrieben. Daran ändert Woche 6 nichts.
 - Die Notebooks der anderen und `workbook_timo_attention_v2.ipynb`.
 
 Als Fehlschlag gilt, auch wenn alles läuft:

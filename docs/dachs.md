@@ -88,7 +88,7 @@ Die letzte Zeile sagt, wofür die Einrichtung reicht: „bereit für den Smoke-L
 
 ### Buchtext
 
-Der Text von *The Lord of the Rings* ist urheberrechtlich geschützt. Wer mit dem Buch trainiert, legt die eigene Kopie als `data/The-lord-of-the-rings.txt` in den eigenen Klon. Es ist dieselbe Datei wie in Woche 4 ([Anleitung](lotr-training.md)). `data/` steht in der `.gitignore`, die Datei kommt nie ins Repo.
+Der Text von *The Lord of the Rings* ist urheberrechtlich geschützt. Wer mit dem Buch trainiert, legt die eigene Kopie als `data/The-lord-of-the-rings.txt` in den eigenen Klon. Es ist dieselbe Datei wie in Woche 4 ([Anleitung](../old/docs/lotr-training.md)). `data/` steht in der `.gitignore`, die Datei kommt nie ins Repo.
 
 Hochladen geht per Ziehen in VS Code oder aus der PowerShell, im Ordner mit der Datei:
 
@@ -222,7 +222,7 @@ Dann wie immer auf einem Branch committen und einen Pull Request stellen. Auf de
 | Job endet sofort, in `logs/` liegt kein Log | Slurm legt das Log in `logs/` unter dem Ordner an, aus dem der Job kam. Fehlt der Ordner dort, gibt es kein Log. | aus dem Klon abschicken, `setup.sh` legt `logs/` an. `sacct -j <Job-ID>` zeigt den Zustand. |
 | `FileNotFoundError` mit einem Pfad in `data/` | Buchtext fehlt oder `SOTA2_DATA_DIR` zeigt woandershin | Buchtext hochladen, `setup.sh` prüft das |
 | W&B bricht ab, weil kein API-Key da ist | kein Login auf dem Cluster | `uv run wandb login --verify` oder `export WANDB_MODE=disabled` |
-| `The NVIDIA driver on your system is too old` | Treiber kann kein CUDA 13 | Job 1 zeigt den Treiber, Timo entscheidet über einen anderen CUDA-Index (README, „Auf dem Cluster“) |
+| `The NVIDIA driver on your system is too old` | Treiber kann kein CUDA 13 | Job 1 zeigt den Treiber, Timo entscheidet über einen anderen CUDA-Index (README, Abschnitt „Versionen“) |
 | `Disk quota exceeded` | Home-Verzeichnis voll | `uv cache clean`, alte Checkpoints löschen |
 | `uv sync` meldet, dass `uv.lock` aktualisiert werden müsste | `pyproject.toml` im Klon geändert | `git status`, eigene Änderung zurücknehmen, `git pull` |
 | `$'\r': command not found` | Skript mit Windows-Zeilenenden, etwa per `scp` kopiert | Skripte nur über git holen, die `.gitattributes` erzwingt LF |

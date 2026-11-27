@@ -26,6 +26,6 @@ source slurm/common.sh
 # --standalone: Jede Aufgabe sucht sich einen freien Port, auch wenn zwei Aufgaben
 # auf demselben Knoten landen
 srun --kill-on-bad-exit=1 torchrun --standalone --nproc-per-node=1 \
-  -m infm_sota2.cluster.train \
+  -m infm_sota2 train \
   --config configs/lotr-small-search.toml \
   --grid-index "$SLURM_ARRAY_TASK_ID"
