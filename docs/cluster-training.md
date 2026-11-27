@@ -4,6 +4,8 @@ Woche 6, Aufgabe *Scaling Pre-Training*. Wir trainieren GPT-2 auf dem Cluster DA
 
 Stand: umgesetzt am 21.11.2026 auf `feature/cluster-setup` und `feature/cluster-training`. Die Läufe auf dem Cluster und ihre Ergebnisse folgen. Was beim Umsetzen anders kam, steht am Ende unter „Abweichungen bei der Umsetzung“.
 
+Seit dem Aufräumen am 26.11.2026 ist der Code anders aufgeteilt. Wo dieser Entwurf Module, Klassen und Befehle nennt, meint er den Stand davor. Den heutigen Aufbau zeigt [code.md](code.md).
+
 ## Aufgabe
 
 Folie 46:

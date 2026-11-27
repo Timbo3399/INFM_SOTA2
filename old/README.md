@@ -1,6 +1,6 @@
 # old/
 
-Hier liegt, was seit dem Aufräumen am 26.11.2026 nicht mehr gebraucht wird. Gelöscht wurde nichts. Die Ordner spiegeln die alten Pfade, `old/notebooks/workbook_timo_lotr.ipynb` lag also vorher unter `notebooks/workbook_timo_lotr.ipynb`.
+Hier liegt, was seit dem Aufräumen am 26.11.2026 nicht mehr gebraucht wird. Gelöscht wurde nichts. Wie der Code heute aufgebaut ist, steht in [docs/code.md](../docs/code.md). Die Ordner hier spiegeln die alten Pfade, `old/notebooks/workbook_timo_lotr.ipynb` lag also vorher unter `notebooks/workbook_timo_lotr.ipynb`.
 
 Nichts in `old/` wird importiert, geprüft oder getestet. Ruff, Pyright und die Tests schauen nur in `src/`, `tests/` und `scripts/`. Die Notebooks hier laufen mit dem heutigen Code nicht mehr, ihre gespeicherten Ausgaben kann man aber lesen. Ihre Colab-Links zeigen noch auf `notebooks/` in `main` und funktionieren nicht mehr.
 

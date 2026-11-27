@@ -1,123 +1,78 @@
 # INFM_SOTA2
 
-Gruppenprojekt im Modul SOTA 2, Master Informatik an der Hochschule Offenburg.
+Gruppenprojekt im Modul SOTA 2, Master Informatik an der Hochschule Offenburg. Wir bauen ein Large Language Model von Grund auf in PyTorch und trainieren es auf dem Cluster.
 
-Wir bauen ein Large Language Model von Grund auf – Schritt für Schritt in PyTorch.
+Wie der Code aufgebaut ist und wie man ihn aufruft, steht kurz in [docs/code.md](docs/code.md). Alles zum Cluster steht in [docs/dachs.md](docs/dachs.md).
 
-## Projektstruktur
+## Aufbau
 
 | Pfad | Inhalt |
 |---|---|
-| `notebooks/` | Notebooks zum Anschauen, lokal oder in Colab. Eins pro Person: `workbook_<name>.ipynb`. |
-| `src/infm_sota2/` | Gemeinsamer Python-Code. `env.py`: `Environment` für Colab, lokal oder unter `torchrun`, mit Pfaden, Gerät, Rang und W&B-Modus. `benchmark.py`: `Benchmark` misst Tokens/s, Speicher und MFU (Woche 5). |
-| `src/infm_sota2/data/` | `BPEDataset`, `Embeddings` und `create_dataloader`: Text → Token-Fenster → Embeddings. `clean_book_text` und `split_text` bereiten Buchtexte vor, `TextSplits` macht daraus Training, Validierung, Test und die Loader. |
-| `src/infm_sota2/transformer/` | `SelfAttention`, `CausalAttention`, `MultiHeadAttention`, `FeedForward`, `LayerNorm` und `TransformerBlock`. |
-| `src/infm_sota2/model/` | `GPTModel`, `GPTModelV2` (aus `torch.nn`-Bausteinen mit `scaled_dot_product_attention`), `GPT2_SMALL_CONFIG`, `build_model` (Modell mit festem Seed), `download_weights` und `load_pretrained` für die OpenAI-Gewichte. |
-| `src/infm_sota2/training/` | `Trainer` mit `TrainConfig` (ein Lauf samt W&B und bestem Checkpoint), `ModelReport` (Modelle vergleichen), `train`, `evaluate`, Checkpoints, `generate`/`complete` für Text und `longest_copied_span` für den Auswendiglern-Check. |
-| `src/infm_sota2/cluster/` | Einstiegspunkte für die Jobs auf dem Cluster (Woche 6): `check` (Job 1), `benchmark` (Lauf Nr. 1) und `train` (alle Trainingsläufe). Dazu `config` liest die TOML-Dateien, `results` schreibt die JSON-Dateien und rechnet die Tabellen für Suche und Skalierung, `distributed` startet die Prozessgruppe für DDP. |
-| `tests/` | Unittests für `src/infm_sota2/` und die Skripte in `slurm/`. |
-| `slurm/` | Einrichtung (`setup.sh`) und Jobskripte für den Cluster, Anleitung in [docs/dachs.md](docs/dachs.md). |
-| `configs/` | Eine TOML-Datei pro Lauf auf dem Cluster. Jede Einstellung eines Laufs steht dort. |
-| `results/` | Ergebnisse der Läufe als JSON, `results/week06/<benutzer>/<gruppe>/<lauf>-job<id>.json`. |
-| `scripts/` | Hilfsskripte, z. B. `smoke_notebook.py` für den Notebook-Smoke-Test. |
-| `docs/` | Anleitungen und Entscheidungen, z. B. [GPT-2 auf „Der Herr der Ringe“](old/docs/lotr-training.md), [Woche 5: Attention V2](old/docs/attention-v2.md), [Woche 6: Pre-Training auf dem Cluster](docs/cluster-training.md) und [Auf dem Cluster DACHS](docs/dachs.md). |
-| `.github/workflows/ci.yml` | CI, führt die Checks aus [Checks lokal ausführen](#checks-lokal-ausführen) aus. |
-| `.githooks/pre-commit` | Git-Hook, der dieselben Checks vor jedem Commit lokal ausführt. |
-| `pyproject.toml`, `uv.lock` | Abhängigkeiten und die exakt festgelegten Versionen. |
+| `src/infm_sota2/` | der Code, ein Modul pro Schritt, siehe [docs/code.md](docs/code.md) |
+| `configs/` | eine TOML-Datei pro Lauf, jede Einstellung steht dort |
+| `slurm/` | Einrichtung (`setup.sh`) und Jobskripte für den Cluster |
+| `notebooks/` | `workbook_timo_cluster.ipynb` wertet die Läufe von Woche 6 aus |
+| `results/` | Ergebnisse der Läufe als JSON, `results/week06/<benutzer>/<gruppe>/` |
+| `tests/` | Unittests für `src/` und die Skripte in `slurm/` |
+| `scripts/` | `smoke_notebook.py` führt das Notebook im Smoke-Test aus |
+| `docs/` | Anleitungen und der Entwurf von Woche 6 |
+| `old/` | was nicht mehr gebraucht wird, siehe [old/README.md](old/README.md) |
+| `.github/`, `.githooks/` | CI und Git-Hook, beide mit denselben Checks |
 
-Entwickelt wird in `.py`-Dateien unter `src/`. Die Notebooks zeigen und erklären, was der Code macht.
-
-## Quick Start
+## Einrichten
 
 Einmal pro Rechner:
 
-1. [uv installieren](https://docs.astral.sh/uv/getting-started/installation/), mindestens Version 0.13. Ein vorhandenes uv mit `uv self update` aktualisieren.
+1. [uv installieren](https://docs.astral.sh/uv/getting-started/installation/), mindestens Version 0.13. Ein vorhandenes uv aktualisiert `uv self update`.
 2. Repo klonen und die Umgebung anlegen. uv lädt dabei Python 3.13 und legt `.venv` an:
    ```bash
    git clone https://github.com/Timbo3399/INFM_SOTA2.git
    cd INFM_SOTA2
    uv sync
    ```
-3. Den Git-Hook aktivieren, damit vor jedem Commit dieselben Checks laufen wie in der CI (siehe [Git-Hook vor dem Commit](#git-hook-vor-dem-commit)):
+3. Den Git-Hook aktivieren. Er führt vor jedem Commit dieselben Checks aus wie die CI:
    ```bash
    git config core.hooksPath .githooks
    ```
-4. In VS Code `"files.eol": "\n"` setzen. Die `.gitattributes` legt LF als Zeilenende fest, auch unter Windows. Ohne die Einstellung warnt git bei neuen Dateien „CRLF will be replaced by LF“.
-5. Notebooks in VS Code öffnen und als Kernel `.venv` wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
-6. Bei W&B anmelden, damit Trainingsläufe im gemeinsamen Projekt landen (siehe [Experimente mit W&B](#experimente-mit-wb)):
-   ```bash
-   uv run wandb login --verify
-   ```
+4. In VS Code `"files.eol": "\n"` setzen, weil die `.gitattributes` auch unter Windows LF verlangt. Hat ein älterer Klon noch Dateien mit CRLF, stellen `git rm -r --cached -q .` und danach `git reset --hard` sie um, aber nur bei einem Stand ohne offene Änderungen.
+5. Für das Notebook in VS Code `.venv` als Kernel wählen. Ohne VS Code geht `uv run --with jupyterlab jupyter lab`.
+6. Wer nach W&B loggen will, meldet sich einmal an, siehe [W&B](#wb).
 
-Wer das Repo schon geklont hat, braucht nur `git pull`, `uv sync` und die Schritte 3, 4 und 6.
-In einem älteren Klon können die Dateien noch CRLF haben. Bei einem Stand ohne offene Änderungen stellen `git rm -r --cached -q .` und danach `git reset --hard` sie auf LF um.
+Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version. Für Intel-Macs gibt es die festgelegte torch-Version nicht.
 
-Danach geht es weiter wie unter [Arbeitsweise](#arbeitsweise): Branch von `week/NN` anlegen, ändern, committen, Pull Request.
+## Benutzen
 
-Unter Linux lädt `uv sync` torch mit CUDA 13.0, das sind mehrere GB. Windows und Macs mit Apple Silicon bekommen die CPU-Version.
-Für Intel-Macs gibt es die festgelegte torch-Version nicht, dort bitte Colab nutzen.
+Alle Befehle laufen über einen Einstieg, `uv run python -m infm_sota2 -h` zeigt sie. Ein Smoke-Lauf auf dem eigenen Rechner dauert Sekunden:
 
-### Checks lokal ausführen
+```bash
+uv run python -m infm_sota2 mini-book data
+uv run python -m infm_sota2 train --config configs/smoke-cpu.toml
+```
 
-Nach `uv sync` können Ruff, Pyright, Coverage und die Unittests so ausgeführt werden:
+Das Ergebnis landet unter `results/week06/<benutzer>/week6-smoke/` und endet auf `-local.json`. Solche Dateien gehören nicht ins Repo.
+
+Die echten Läufe starten auf dem Cluster mit `sbatch`, die Anleitung steht in [docs/dachs.md](docs/dachs.md). Ausgewertet werden sie in `notebooks/workbook_timo_cluster.ipynb`.
+
+## Checks
 
 ```bash
 uv run ruff check
 uv run ruff format --check
 uv run pyright
 uv run python -m unittest discover -s tests -p 'test*.py'
-uv run coverage run -m unittest discover -s tests -p 'test*.py'
-uv run coverage report
 ```
 
-Dieselben Checks laufen in der CI bei jedem Pull Request und bei jedem Push auf `main` und `week/**`.
-Vor dem Pull Request lokal ausführen. Gemergt wird erst, wenn die CI grün ist.
+Dieselben Checks laufen in der CI bei jedem Pull Request und bei jedem Push auf `main` und `week/**`, der Git-Hook führt sie vor jedem Commit aus. Ruff-Fehler behebt meist `uv run ruff check --fix` und danach `uv run ruff format`. `git commit --no-verify` überspringt den Hook im Notfall, die CI prüft trotzdem.
 
-### Git-Hook vor dem Commit
+## Versionen
 
-`.githooks/pre-commit` führt vor jedem Commit `ruff check`, `ruff format --check`, `pyright` und die Unittests aus, mit den Versionen aus `uv.lock` wie in der CI.
-Schlägt ein Check fehl, bricht der Commit ab. Ruff-Fehler behebt meist `uv run ruff check --fix` und danach `uv run ruff format`.
+torch, tiktoken und wandb sind auf die Versionen der Colab-Laufzeit festgelegt, Python auf 3.13. Die Pins stehen nur in `pyproject.toml`. So läuft lokal, auf dem Cluster und in Colab dasselbe. Welche Versionen Colab gerade hat, steht in [googlecolab/backend-info](https://github.com/googlecolab/backend-info). Angehoben wird nur zusammen mit Colab.
 
-- Der Hook prüft die Arbeitskopie, nicht nur die gestagten Änderungen, und braucht rund 15 Sekunden.
-- `git commit --no-verify` überspringt ihn im Notfall. Die CI prüft trotzdem.
-- Commits aus Colab („Kopie in GitHub speichern“) und über die GitHub-Weboberfläche laufen nicht durch den Hook.
-
-### Versionen
-
-torch, tiktoken und wandb sind exakt auf die Versionen der Colab-Laufzeit festgelegt, Python auf 3.13. Die Pins stehen nur in `pyproject.toml`.
-So läuft lokal, auf dem Cluster und in Colab dasselbe. `requires-python` erlaubt zusätzlich 3.12, das hat die ältere Colab-Laufzeit 2026.07.
-Welche Versionen Colab gerade hat, steht in [googlecolab/backend-info](https://github.com/googlecolab/backend-info). Angehoben wird nur zusammen mit Colab.
-
-Pakete hinzufügen:
-
-- Nur für Notebooks (Plots, Tabellen, Widgets): `uv add --dev <paket>`.
-- Pakete, die Ergebnisse beeinflussen, mit der exakten Colab-Version, z. B. numpy, sobald es im Code direkt verwendet wird: `uv add "numpy==2.1.3"`.
+- Pakete nur für das Notebook oder die Checks: `uv add --dev <paket>`.
+- Pakete, die Ergebnisse beeinflussen, mit der exakten Colab-Version, z. B. `uv add "numpy==2.1.3"`.
 - `uv.lock` immer mit committen.
 
-### Auf dem Cluster
-
-Der Einstieg für alle steht in [docs/dachs.md](docs/dachs.md): Konto, SSH, Einrichtung mit `bash slurm/setup.sh` und unsere Jobs.
-`setup.sh` erledigt die Schritte aus diesem Abschnitt, hier steht, was dahintersteckt.
-
-```bash
-export UV_NO_DEV=1
-uv sync --no-dev
-```
-
-`uv sync --no-dev` installiert nur, was die Skripte brauchen (torch, tiktoken, wandb), ohne die Notebook-Pakete.
-`UV_NO_DEV=1` sorgt dafür, dass auch `uv run` sie nicht wieder nachinstalliert. Die Variable gehört deshalb auch ins Jobskript,
-sonst will der Job auf einem Rechenknoten ohne Internet Pakete herunterladen und bricht ab.
-
-Rechenknoten haben oft kein Internet, tiktoken lädt die GPT-2-Daten aber beim ersten Aufruf herunter.
-Deshalb einmal auf dem Login-Knoten ausführen (im selben Terminal wie oben) und `TIKTOKEN_CACHE_DIR` im Jobskript genauso setzen:
-
-```bash
-export TIKTOKEN_CACHE_DIR="$HOME/.cache/tiktoken"
-uv run python -c "import tiktoken; tiktoken.get_encoding('gpt2')"
-```
-
-Die torch-Pakete von PyPI brauchen CUDA 13.0, also einen aktuellen NVIDIA-Treiber, und laufen nicht auf V100.
-Kann der Cluster das nicht, kommt dieser Block in die `pyproject.toml`, danach `uv lock`. Er gilt dann für alle Linux-Rechner:
+Die torch-Pakete von PyPI brauchen CUDA 13.0, also einen aktuellen NVIDIA-Treiber, und laufen nicht auf V100. Kann ein Cluster das nicht, kommt dieser Block in die `pyproject.toml`, danach `uv lock`. Er gilt dann für alle Linux-Rechner:
 
 ```toml
 [[tool.uv.index]]
@@ -129,140 +84,33 @@ explicit = true
 torch = [{ index = "pytorch-cu126", marker = "sys_platform == 'linux'" }]
 ```
 
-## Experimente mit W&B
+## W&B
 
-Trainingsläufe loggen wir mit [Weights & Biases](https://wandb.ai) (W&B) in das Projekt [`SOTA_2`](https://wandb.ai/hochschule-offenburg/SOTA_2) des Teams `hochschule-offenburg`.
-Der Link leitet auf forge.coreweave.com weiter, beide Adressen zeigen dasselbe Projekt. Wer es nicht öffnen kann, braucht eine Einladung ins Team.
+Die Läufe loggen nach [Weights & Biases](https://wandb.ai) in das Projekt [`SOTA_2`](https://wandb.ai/hochschule-offenburg/SOTA_2) des Teams `hochschule-offenburg`. Der Link leitet auf forge.coreweave.com weiter. Wer das Projekt nicht öffnen kann, braucht eine Einladung ins Team. W&B ist kein Muss.
 
-Im Trainingsskript oder Notebook:
-
-```python
-import wandb
-
-run = wandb.init(
-    entity="hochschule-offenburg",
-    project="SOTA_2",
-    name="gpt2-small-lr4e-4",  # optional, sonst vergibt W&B einen Namen
-    config={"lr": 4e-4, "batch_size": 8},
-)
-for step in range(num_steps):
-    ...  # Trainingsschritt
-    run.log({"train/loss": loss.item()}, step=step)
-run.finish()
-```
-
-In `config` gehören die Hyperparameter. W&B kann Runs nach diesen Werten filtern und vergleichen.
-
-### Anmelden
-
-Einmal pro Rechner, auf dem Cluster auf dem Login-Knoten:
+Angemeldet wird einmal pro Rechner, auf dem Cluster auf dem Login-Knoten:
 
 ```bash
 uv run wandb login --verify
 ```
 
-wandb fragt nach dem API-Key von [wandb.ai/authorize](https://wandb.ai/authorize) und speichert ihn in `~/.netrc`, unter Windows in `%USERPROFILE%\_netrc`.
-`--verify` prüft den Key sofort und zeigt das Standard-Team an. Mit `--relogin` lässt sich ein anderer Key eintragen.
-
-### In Colab
-
-Colab hat wandb 0.28.1 schon installiert. Den API-Key als Colab-Secret `WANDB_API_KEY` anlegen (Schlüssel-Symbol links), dem Notebook Zugriff geben und am Anfang anmelden:
-
-```python
-import wandb
-from google.colab import userdata
-
-wandb.login(key=userdata.get("WANDB_API_KEY"))
-```
-
-### Runs vom Cluster
-
-Haben die Rechenknoten Internet, schreibt der Job direkt nach W&B. Der Key aus `~/.netrc` gilt dort, wenn die Rechenknoten dasselbe Home-Verzeichnis haben wie der Login-Knoten.
-
-Ohne Internet loggt wandb offline in den Ordner `wandb/` im Arbeitsverzeichnis des Jobs. Dafür ins Jobskript:
-
-```bash
-export WANDB_MODE=offline
-```
-
-Nach dem Job die Runs auf dem Login-Knoten hochladen:
-
-```bash
-uv run wandb sync wandb/offline-run-*
-```
-
-`wandb/` steht in der `.gitignore`.
+wandb fragt nach dem API-Key von [wandb.ai/authorize](https://wandb.ai/authorize) und speichert ihn in `~/.netrc`. Ohne W&B setzt man vor dem Lauf `export WANDB_MODE=disabled`. Kommen die Rechenknoten nicht ins Internet, heißt es `WANDB_MODE=offline`, und nach dem Job lädt `uv run wandb sync wandb/offline-run-*` die Läufe hoch.
 
 ## Arbeitsweise
 
-### Branches
-
 | Branch | Zweck |
 |---|---|
-| `main` | Abgestimmter Stand. Geschützt: Änderungen nur per Pull Request mit Review. |
-| `week/NN` | Wochen-Branch, wird zu Wochenbeginn von `main` angelegt, z. B. `week/03`. |
-| `feature/…`, `fix/…`, `chore/…` | Eine Aufgabe. Zweigt von `week/NN` ab, geht per Pull Request zurück und wird nach dem Merge gelöscht. |
+| `main` | abgestimmter Stand, geschützt, Änderungen nur per Pull Request mit Review |
+| `week/NN` | Wochen-Branch, zu Wochenbeginn von `main` angelegt |
+| `feature/…`, `fix/…`, `chore/…` | eine Aufgabe, zweigt von `week/NN` ab und geht per Pull Request zurück |
 
-Ablauf:
+Gemergt wird mit „Create a merge commit“, nicht mit Squash. Am Ende der Woche geht `week/NN` per Pull Request nach `main`, und eine andere Person reviewt.
 
-1. Zu Wochenbeginn `week/NN` von `main` anlegen.
-2. Für jede Aufgabe einen Branch von `week/NN` anlegen, z. B. `feature/attention`.
-3. Pull Request mit `base: week/NN` ← `compare: feature/attention`.
-4. Am Ende der Woche Pull Request `week/NN` → `main`. Eine andere Person reviewt und approved.
-5. Neuer `week/NN+1` von `main`, dann von vorne.
-
-Gemergt wird immer mit **„Create a merge commit“**, nicht Squash.
-Wer im Feature-Branch die Änderungen der anderen braucht, holt sie mit `git pull origin week/NN`.
-
-### Mit Colab arbeiten
-
-Jedes Workbook hat oben einen „Open in Colab“-Link auf `main`:
-`https://colab.research.google.com/github/Timbo3399/INFM_SOTA2/blob/main/notebooks/workbook_<name>.ipynb`
-
-Um ein Notebook in Colab zu bearbeiten:
-
-1. In Colab *Datei → Notebook öffnen → GitHub*, Repo `Timbo3399/INFM_SOTA2` und den eigenen Feature-Branch wählen.
-2. Speichern mit *Datei → Kopie in GitHub speichern*, dabei den Feature-Branch auswählen.
-   Speichern auf `main` schlägt fehl, das ist Absicht.
-   Colab setzt dabei den „Open in Colab“-Link oben im Notebook auf den Feature-Branch, und der wird nach dem Merge gelöscht.
-   Deshalb vor dem Pull Request den Link in der ersten Zelle lokal wieder auf `blob/main/notebooks/…` setzen. Prüfen mit:
-   `grep -o 'colab.research.google.com/github/[^"\\]*' notebooks/*.ipynb`
-3. Aussagekräftige Commit-Message statt „Mit Colab erstellt“, z. B. `ch03: Attention-Gewichte geplottet`.
-
-Colab formatiert beim Speichern die ganze Datei neu. Kleine Änderungen wie Tippfehler oder Links deshalb lokal machen.
-
-Sobald ein Notebook Code aus `src/infm_sota2/` nutzt, kommt diese Zelle an den Anfang:
-
-```python
-# Colab: eigenes Paket installieren, Colabs torch/tiktoken bleiben unangetastet
-%pip install -q --no-deps "git+https://github.com/Timbo3399/INFM_SOTA2.git@main"
-
-from importlib.metadata import requires, version
-
-# Erwartete Versionen kommen aus pyproject.toml des installierten Pakets
-for req in requires("infm-sota2"):
-    name, _, wanted = req.partition("==")
-    have = version(name).split("+")[0]
-    if have != wanted:
-        print(f"Achtung: Colab hat {name} {have}, pyproject.toml erwartet {wanted}")
-```
-
-`--no-deps` verhindert, dass pip torch neu installiert. Statt `@main` geht auch ein Branch, z. B. `@week/02`, solange der Code noch nicht in `main` ist.
-Die Schleife vergleicht die Versionen in Colab mit den Pins aus der `pyproject.toml` des installierten Stands. Im Notebook steht deshalb keine Versionsnummer.
-Gibt sie eine „Achtung“-Zeile aus, hat Colab aktualisiert: dann die Versionen in `pyproject.toml` anheben und `uv lock` ausführen.
-Lokal ist das Paket nach `uv sync` schon installiert. Dort meldet `%pip` nur „No module named pip“, weil uv kein pip ins `.venv` legt. Das kann man ignorieren.
+Das Notebook hat oben einen „Open in Colab“-Link auf `main`. In Colab öffnet man es über *Datei → Notebook öffnen → GitHub* auf dem eigenen Feature-Branch und speichert mit *Datei → Kopie in GitHub speichern* dorthin zurück. Colab setzt den Link dabei auf den Feature-Branch, er muss vor dem Pull Request wieder auf `blob/main/notebooks/…` zeigen. Kleine Änderungen macht man besser lokal, weil Colab beim Speichern die ganze Datei neu formatiert.
 
 ## Regeln
 
-- **Ein Notebook, eine Person.** Notebooks sind JSON-Dateien, gleichzeitige Änderungen an derselben Datei lassen sich kaum mergen.
-  Wer ein bestehendes Notebook erweitern will, legt eine Kopie an, z. B. `workbook_marvin_attention.ipynb`, oder spricht sich vorher ab.
-- **Keine Secrets im Code.** API-Tokens (Hugging Face, W&B, OpenAI, Kaggle …) nur über Colab-Secrets (Schlüssel-Symbol links):
-  ```python
-  from google.colab import userdata
-  hf_token = userdata.get("HF_TOKEN")
-  ```
-  Tokens nie in eine Zelle schreiben und nie ausgeben. Ein versehentlich gepushter Token gilt als kompromittiert und muss sofort widerrufen werden.
-- **Keine Modellgewichte oder Datensätze committen.** Die `.gitignore` fängt die üblichen Fälle ab (`*.pth`, `gpt2/`, `data/` …).
-  Daten gehören nach `data/`. Notebooks, die lokal laufen, legen sie unter `notebooks/data/` ab, auch das wird ignoriert.
-  Colab speichert nur das Notebook selbst, Dateien aus `/content` landen nicht im Repo.
-- **Outputs klein halten.** Vor dem Speichern lange Ausgaben (Trainings-Logs, große Tabellen) löschen.
+- **Ein Notebook, eine Person.** Gleichzeitige Änderungen an derselben Notebook-Datei lassen sich kaum mergen.
+- **Keine Secrets im Code.** API-Keys nur über `wandb login` oder Colab-Secrets. Ein versehentlich gepushter Key gilt als kompromittiert und muss sofort widerrufen werden.
+- **Keine Modellgewichte, Buchtexte oder Datensätze committen.** Die `.gitignore` fängt `data/`, `checkpoints/`, `*.pth` und Ähnliches ab.
+- **Outputs klein halten.** Lange Ausgaben vor dem Speichern löschen.

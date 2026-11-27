@@ -222,7 +222,7 @@ Dann wie immer auf einem Branch committen und einen Pull Request stellen. Auf de
 | Job endet sofort, in `logs/` liegt kein Log | Slurm legt das Log in `logs/` unter dem Ordner an, aus dem der Job kam. Fehlt der Ordner dort, gibt es kein Log. | aus dem Klon abschicken, `setup.sh` legt `logs/` an. `sacct -j <Job-ID>` zeigt den Zustand. |
 | `FileNotFoundError` mit einem Pfad in `data/` | Buchtext fehlt oder `SOTA2_DATA_DIR` zeigt woandershin | Buchtext hochladen, `setup.sh` prüft das |
 | W&B bricht ab, weil kein API-Key da ist | kein Login auf dem Cluster | `uv run wandb login --verify` oder `export WANDB_MODE=disabled` |
-| `The NVIDIA driver on your system is too old` | Treiber kann kein CUDA 13 | Job 1 zeigt den Treiber, Timo entscheidet über einen anderen CUDA-Index (README, „Auf dem Cluster“) |
+| `The NVIDIA driver on your system is too old` | Treiber kann kein CUDA 13 | Job 1 zeigt den Treiber, Timo entscheidet über einen anderen CUDA-Index (README, Abschnitt „Versionen“) |
 | `Disk quota exceeded` | Home-Verzeichnis voll | `uv cache clean`, alte Checkpoints löschen |
 | `uv sync` meldet, dass `uv.lock` aktualisiert werden müsste | `pyproject.toml` im Klon geändert | `git status`, eigene Änderung zurücknehmen, `git pull` |
 | `$'\r': command not found` | Skript mit Windows-Zeilenenden, etwa per `scp` kopiert | Skripte nur über git holen, die `.gitattributes` erzwingt LF |
