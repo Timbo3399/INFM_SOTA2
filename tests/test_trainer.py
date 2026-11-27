@@ -12,7 +12,7 @@ from infm_sota2.cluster.config import TrainSettings
 from infm_sota2.cluster.train import fit
 from infm_sota2.data import TextSplits
 from infm_sota2.env import Environment
-from infm_sota2.training import TrainResult, evaluate, train
+from infm_sota2.loop import TrainResult, evaluate, train
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 
 CPU = torch.device("cpu")

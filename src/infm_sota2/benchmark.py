@@ -17,8 +17,8 @@ import torch
 from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
+from infm_sota2.loop import batch_loss
 from infm_sota2.model import GPTModel, GPTModelV2
-from infm_sota2.training.loop import batch_loss
 
 Precision = Literal["fp32", "fp16-mixed", "bf16-mixed", "bf16"]
 Attention = Literal["auto", "math"]

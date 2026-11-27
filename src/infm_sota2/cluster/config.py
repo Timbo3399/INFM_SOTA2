@@ -11,8 +11,8 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, get_args
 
+from infm_sota2.loop import TrainPrecision
 from infm_sota2.model import GPT2_SMALL_CONFIG, MODEL_CLASSES
-from infm_sota2.training import TrainPrecision
 
 
 @dataclass(frozen=True)

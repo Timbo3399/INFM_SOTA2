@@ -45,6 +45,7 @@ from infm_sota2.env import (
     destroy_distributed,
     init_distributed,
 )
+from infm_sota2.loop import TrainResult, load_checkpoint, train
 from infm_sota2.model import (
     GPT2_SMALL_CONFIG,
     GPT2_SMALL_WEIGHTS_SHA256,
@@ -55,7 +56,7 @@ from infm_sota2.model import (
     download_weights,
     load_pretrained,
 )
-from infm_sota2.training import ModelReport, TrainResult, load_checkpoint, train
+from infm_sota2.report import ModelReport
 
 PRETRAINED = "GPT-2 original"
 PRETRAINED_FILE = "gpt2-small-124M.pth"

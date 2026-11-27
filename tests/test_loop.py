@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, DistributedSampler
 
-from infm_sota2.training import (
+from infm_sota2.loop import (
     batch_loss,
     evaluate,
     load_checkpoint,
