@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase
 
-from infm_sota2.cluster.results import (
+from infm_sota2.results import (
     git_commit,
     load_results,
     result_path,

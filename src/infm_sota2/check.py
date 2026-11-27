@@ -178,7 +178,3 @@ def main(argv: list[str] | None = None) -> None:
             )
     finally:
         destroy_distributed(env)
-
-
-if __name__ == "__main__":
-    main()

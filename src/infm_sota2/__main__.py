@@ -7,8 +7,7 @@ Die Optionen eines Befehls zeigt ``python -m infm_sota2 <befehl> -h``.
 import sys
 from collections.abc import Callable
 
-from infm_sota2 import data
-from infm_sota2.cluster import benchmark, check, train
+from infm_sota2 import benchmark, check, data, train
 
 COMMANDS: dict[str, Callable[[list[str] | None], None]] = {
     "check": check.main,  # Job 1: Umgebung prüfen

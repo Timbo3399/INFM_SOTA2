@@ -1,14 +1,11 @@
 import json
 import tempfile
+from dataclasses import asdict
 from pathlib import Path
 from unittest import TestCase
 
-from infm_sota2.cluster.config import (
-    config_dict,
-    load_config,
-    run_label,
-    with_grid,
-)
+from infm_sota2.config import load_config, with_grid
+
 from infm_sota2.model import GPT2_LARGE_CONFIG, GPT2_MEDIUM_CONFIG
 
 CONFIGS = Path(__file__).resolve().parent.parent / "configs"
@@ -142,12 +139,10 @@ class GridTest(ConfigTestCase):
             with_grid(self.load(SMOKE_CPU), 0)
 
 
-class LabelTest(ConfigTestCase):
-    def test_run_label_names_gpus(self):
-        self.assertEqual(run_label(self.load(SMOKE_CPU), 2), "smoke-cpu-gpus2")
-
-    def test_config_dict_is_ready_for_json(self):
-        record = json.loads(json.dumps(config_dict(self.load(SMOKE_CPU + SEARCH))))
+class JsonTest(ConfigTestCase):
+    def test_settings_are_ready_for_json(self):
+        # So landen alle Einstellungen in W&B und in der Ergebnisdatei
+        record = json.loads(json.dumps(asdict(self.load(SMOKE_CPU + SEARCH))))
 
         self.assertEqual(record["train"]["learning_rate"], 1e-2)
         self.assertEqual(record["search"]["batch_sizes"], [8, 32, 128])

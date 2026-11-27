@@ -16,10 +16,10 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
+from infm_sota2.config import TrainSettings, load_config
+from infm_sota2.train import fit, run
 from torch.multiprocessing.spawn import spawn
 
-from infm_sota2.cluster.config import TrainSettings, load_config
-from infm_sota2.cluster.train import fit, run
 from infm_sota2.data import TextSplits
 from tests.helpers import MINI_BOOK, local_env, tiny_model, write_mini_book
 

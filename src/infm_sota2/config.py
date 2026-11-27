@@ -7,7 +7,7 @@ Batchgröße zum Index des Job-Arrays.
 """
 
 import tomllib
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, get_args
 
@@ -189,15 +189,6 @@ def with_grid(config: RunConfig, index: int) -> RunConfig:
     )
     name = f"{config.name}-lr{learning_rate:g}-bs{batch_size}"
     return replace(config, name=name, train=train)
-
-
-def run_label(config: RunConfig, world_size: int) -> str:
-    return f"{config.name}-gpus{world_size}"
-
-
-def config_dict(config: RunConfig) -> dict[str, object]:
-    """Alle Einstellungen als verschachteltes dict, für W&B und die JSON-Datei."""
-    return asdict(config)
 
 
 def _table(

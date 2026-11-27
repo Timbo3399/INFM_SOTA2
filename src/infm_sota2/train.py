@@ -27,16 +27,8 @@ from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
 from infm_sota2.benchmark import flops_per_token, peak_tflops
-from infm_sota2.cluster.check import collect_info
-from infm_sota2.cluster.config import (
-    RunConfig,
-    TrainSettings,
-    config_dict,
-    load_config,
-    run_label,
-    with_grid,
-)
-from infm_sota2.cluster.results import git_commit, result_path, write_result
+from infm_sota2.check import collect_info
+from infm_sota2.config import RunConfig, TrainSettings, load_config, with_grid
 from infm_sota2.data import TextSplits
 from infm_sota2.env import (
     WANDB_ENTITY,
@@ -57,12 +49,13 @@ from infm_sota2.model import (
     load_pretrained,
 )
 from infm_sota2.report import ModelReport
+from infm_sota2.results import git_commit, result_path, write_result
 
 PRETRAINED = "GPT-2 original"
 PRETRAINED_FILE = "gpt2-small-124M.pth"
 # Der Klon, aus dem dieser Code läuft (uv sync installiert das Paket editierbar).
 # Sein Git-Commit kommt in jede Ergebnisdatei, egal aus welchem Ordner der Lauf kam.
-REPO_DIR = Path(__file__).resolve().parents[3]
+REPO_DIR = Path(__file__).resolve().parents[2]
 
 
 def run(
@@ -92,7 +85,7 @@ def run(
     seq_len = data_fields.pop("seq_len")
     data = TextSplits.from_book(env.data_dir, seq_len=seq_len, **data_fields)
 
-    label = run_label(config, env.world_size)
+    label = f"{config.name}-gpus{env.world_size}"
     main_process = env.rank == 0
     context_length = config.model["context_length"]
     assert isinstance(context_length, int)  # load_config hat den Typ geprüft
@@ -140,7 +133,7 @@ def run(
             name=f"{label}-{user}",
             group=config.group,
             checkpoint_name=f"{label}.pth" if config.save_checkpoint else None,
-            wandb_config=config_dict(config) | {"user": user, "job_id": job_id},
+            wandb_config=asdict(config) | {"user": user, "job_id": job_id},
         )
         if not main_process:
             return {}
@@ -308,7 +301,7 @@ def _empty_record(
         "user": user,
         "label": label,
         "group": config.group,
-        "config": config_dict(config),
+        "config": asdict(config),
         "environment": collect_info(env, check_internet=False)
         | {
             "job_id": job_id,
@@ -379,7 +372,3 @@ def main(argv: list[str] | None = None) -> None:
         run(config, env, getpass.getuser(), os.environ.get("SLURM_JOB_ID"), REPO_DIR)
     finally:
         destroy_distributed(env)
-
-
-if __name__ == "__main__":
-    main()
